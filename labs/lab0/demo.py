@@ -26,6 +26,19 @@ q = arm.neutral_position()
 arm.safe_move_to_position(q)
 arm.open_gripper()
 
+# 1.
+# q = np.array([-1.57,-1.57 ,1.57,-2,0,1,1]) # TODO: try changing this!
+
+# 2.
+# q = np.array([-1.57,-1.57,0,-0.5,0,1,1]) # TODO: try changing this!
+
+# 3.
+# q = np.array([-1.57,-1.57,-1.57,-2,0,1,1]) # TODO: try changing this!
+
+# 4
+# q = np.array([0,0,1.57,-2,0,1,1]) # TODO: try changing this!
+
 q = np.array([0,-1 ,0,-2,0,1,1]) # TODO: try changing this!
+
 arm.safe_move_to_position(q)
 arm.close_gripper()
