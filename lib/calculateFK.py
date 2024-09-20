@@ -30,11 +30,55 @@ class FK():
         jointPositions = np.zeros((8,3))
         T0e = np.identity(4)
 
-        # Your code ends here
+        # The lowest joint ia 0.141m above the base
+        T0e = np.array([
+            [1, 0, 0, 0.],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0.141],
+            [0, 0, 0, 1]
+        ])
 
-        return jointPositions, T0e
+        # Positions of the 7 joints (+ end effector) in their respective frames
+        homJointPositions = np.array([
+            [0, 0, 0,      1],
+            [0, 0, 0,      1],
+            [0, 0, 0.195,  1],
+            [0, 0, 0,      1],
+            [0, 0, 0.125,  1],
+            [0, 0, -0.015, 1],
+            [0, 0, 0.051,  1],
+            [0, 0, 0,      1]
+        ])
+        jointPositions[0] = (T0e @ homJointPositions[0])[:3]
+
+        # Matrix of DH parameters for all 7 links of franka arm
+        params = np.array([
+            [0,      -np.pi/2, 0.192, q[0]],
+            [0,       np.pi/2, 0,     q[1]],
+            [0.0825,  np.pi/2, 0.316, q[2]],
+            [0.0825,  np.pi/2, 0,     q[3] + np.pi],
+            [0,      -np.pi/2, 0.384, q[4]],
+            [0.088,   np.pi/2, 0,     q[5] + np.pi],
+            [0,       0,       0.21,  q[6] - np.pi/4]
+        ])
+
+        # Loop over all 7 links
+        for i in range(7):
+            T0e = np.matmul(T0e, self.compute_DH_matrix(params[i,0], params[i,1], params[i,2], params[i,3]))
+            jointPositions[i+1] = (T0e @ homJointPositions[i+1])[:3]        
+
+        # Your code ends here
+        return np.round(jointPositions, 4), np.round(T0e, 4)
 
     # feel free to define additional helper methods to modularize your solution for lab 1
+    def compute_DH_matrix(self, a_i, alpha_i, d_i, theta_i):
+        return np.array([
+            [np.cos(theta_i), -np.sin(theta_i) * np.cos(alpha_i), np.sin(theta_i) * np.sin(alpha_i), a_i * np.cos(theta_i)],
+            [np.sin(theta_i), np.cos(theta_i) * np.cos(alpha_i), -np.cos(theta_i) * np.sin(alpha_i), a_i * np.sin(theta_i)],
+            [0, np.sin(alpha_i), np.cos(alpha_i), d_i],
+            [0, 0, 0, 1]
+        ])
+        
 
     
     # This code is for Lab 2, you can ignore it ofr Lab 1
