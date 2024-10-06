@@ -14,6 +14,17 @@ def calcJacobian(q_in):
 
     ## STUDENT CODE GOES HERE
 
+    fk = FK()
+    joint_positions, T0e = fk.forward(q_in)
+    axis_of_rotation = fk.get_axis_of_rotation(q_in)
+
+    # Last three rows are angular velocity, can be computed from axis of rotation
+    J[3:6, :] = axis_of_rotation
+
+    # For each joint, linear velocity is cross product of axis of rotation, with (o_n - o_i)
+    for i in range(7):
+        J[0:3, i] = np.cross(axis_of_rotation[:,i], joint_positions[-1] - joint_positions[i])
+
     return J
 
 if __name__ == '__main__':

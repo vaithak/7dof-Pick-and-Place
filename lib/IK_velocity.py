@@ -2,7 +2,6 @@ import numpy as np
 from lib.calcJacobian import calcJacobian
 
 
-
 def IK_velocity(q_in, v_in, omega_in):
     """
     :param q_in: 1 x 7 vector corresponding to the robot's current configuration.
@@ -23,5 +22,18 @@ def IK_velocity(q_in, v_in, omega_in):
 
     v_in = v_in.reshape((3,1))
     omega_in = omega_in.reshape((3,1))
+
+    J = calcJacobian(q_in)
+
+    # combined velocity and angular velocity vector
+    v_comb = np.vstack((v_in, omega_in))
+
+    # Remove rows with NaN
+    nan_rows = np.isnan(v_comb).any(axis=1)
+    Jmod = J[~nan_rows, :]
+    v_comb = v_comb[~nan_rows, :]
+
+    # Use np.linalg.lstsq to solve the least squares problem
+    dq = np.linalg.lstsq(Jmod, v_comb)[0]
     
-    return dq
+    return dq.T
