@@ -13,5 +13,7 @@ def FK_velocity(q_in, dq):
 
     velocity = np.zeros((6, 1))
 
+    J = calcJacobian(q_in)
+    velocity = np.matmul(J, dq.T)
 
     return velocity
