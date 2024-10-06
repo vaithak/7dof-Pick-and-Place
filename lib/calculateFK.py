@@ -9,6 +9,29 @@ class FK():
         # useful in computing the forward kinematics. The data you will need
         # is provided in the lab handout
 
+        # Positions of the 7 joints (+ end effector) in their respective frames
+        self.homJointPositions = np.array([
+            [0, 0, 0,      1],
+            [0, 0, 0,      1],
+            [0, 0, 0.195,  1],
+            [0, 0, 0,      1],
+            [0, 0, 0.125,  1],
+            [0, 0, -0.015, 1],
+            [0, 0, 0.051,  1],
+            [0, 0, 0,      1]
+        ])
+        
+        # Matrix of DH parameters for all 7 links of franka arm
+        self.params = np.array([
+            [0,      -np.pi/2, 0.192, 0],        # + q[0]
+            [0,       np.pi/2, 0,     0],        # + q[1]
+            [0.0825,  np.pi/2, 0.316, 0],        # + q[2]
+            [0.0825,  np.pi/2, 0,     np.pi],    # + q[3]
+            [0,      -np.pi/2, 0.384, 0],        # + q[4]
+            [0.088,   np.pi/2, 0,     np.pi],    # + q[5]
+            [0,       0,       0.21,  -np.pi/4], # + q[6]
+        ])
+
         pass
 
     def forward(self, q):
@@ -37,35 +60,13 @@ class FK():
             [0, 0, 1, 0.141],
             [0, 0, 0, 1]
         ])
-
-        # Positions of the 7 joints (+ end effector) in their respective frames
-        homJointPositions = np.array([
-            [0, 0, 0,      1],
-            [0, 0, 0,      1],
-            [0, 0, 0.195,  1],
-            [0, 0, 0,      1],
-            [0, 0, 0.125,  1],
-            [0, 0, -0.015, 1],
-            [0, 0, 0.051,  1],
-            [0, 0, 0,      1]
-        ])
-        jointPositions[0] = (T0e @ homJointPositions[0])[:3]
-
-        # Matrix of DH parameters for all 7 links of franka arm
-        params = np.array([
-            [0,      -np.pi/2, 0.192, q[0]],
-            [0,       np.pi/2, 0,     q[1]],
-            [0.0825,  np.pi/2, 0.316, q[2]],
-            [0.0825,  np.pi/2, 0,     q[3] + np.pi],
-            [0,      -np.pi/2, 0.384, q[4]],
-            [0.088,   np.pi/2, 0,     q[5] + np.pi],
-            [0,       0,       0.21,  q[6] - np.pi/4]
-        ])
+        jointPositions[0] = (T0e @ self.homJointPositions[0])[:3]
 
         # Loop over all 7 links
+        Ais = self.compute_Ai(q)
         for i in range(7):
-            T0e = np.matmul(T0e, self.compute_DH_matrix(params[i,0], params[i,1], params[i,2], params[i,3]))
-            jointPositions[i+1] = (T0e @ homJointPositions[i+1])[:3]        
+            T0e = np.matmul(T0e, Ais[i])
+            jointPositions[i+1] = (T0e @ self.homJointPositions[i+1])[:3]        
 
         # Your code ends here
         return np.round(jointPositions, 4), np.round(T0e, 4)
@@ -78,8 +79,7 @@ class FK():
             [0, np.sin(alpha_i), np.cos(alpha_i), d_i],
             [0, 0, 0, 1]
         ])
-        
-
+    
     
     # This code is for Lab 2, you can ignore it ofr Lab 1
     def get_axis_of_rotation(self, q):
@@ -94,7 +94,23 @@ class FK():
         """
         # STUDENT CODE HERE: This is a function needed by lab 2
 
-        return()
+        axis_of_rotation_list = []
+
+        # First fetch Ais for all links
+        Ais = self.compute_Ai(q)
+        
+        # For each Ai, the z-axis in their corresponding frame is the first three entries of the third column.
+        # Along with this, we also maintain Ri0, the rotation matrix from the ith link frame to the base frame
+        # The axis of rotation in the world frame will be Ri0 @ z_i
+        axis_of_rotation_list.append(np.array([0, 0, 1]))
+        Ri0 = np.identity(3)
+        for i in range(6):
+            zi = Ais[i][:3, 2]
+            axis_of_rotation_list.append(Ri0 @ zi)
+            Ri0 = np.matmul(Ri0, Ais[i][:3, :3])
+
+        axis_of_rotation_list = np.array(axis_of_rotation_list)
+        return axis_of_rotation_list.T
     
     def compute_Ai(self, q):
         """
@@ -107,7 +123,11 @@ class FK():
         """
         # STUDENT CODE HERE: This is a function needed by lab 2
 
-        return()
+        Ai = []
+        for i in range(7):
+            Ai.append(self.compute_DH_matrix(self.params[i,0], self.params[i,1], self.params[i,2], self.params[i,3] + q[i]))
+
+        return Ai
     
 if __name__ == "__main__":
 
