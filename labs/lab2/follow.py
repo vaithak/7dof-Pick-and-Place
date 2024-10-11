@@ -58,7 +58,7 @@ class JacobianDemo():
     ## TRAJECTORIES ##
     ##################
 
-    def eight(t,fx=0.5,fy=1.0,rx=.15,ry=.1):
+    def eight(t,fx=0.2,fy=0.4,rx=.15,ry=.1):
         """
         Calculate the position and velocity of the figure 8 trajector
 
@@ -87,7 +87,7 @@ class JacobianDemo():
 
         return Rdes, ang_vdes, xdes, vdes
 
-    def ellipse(t,f=0.5,ry=.15,rz=.10):
+    def ellipse(t,f=0.4,ry=.15,rz=.10):
         """
         Calculate the position and velocity of the figure ellipse trajector
 
@@ -107,17 +107,17 @@ class JacobianDemo():
         x0 = np.array([0.307, 0, 0.487]) # corresponds to neutral position
 
         ## STUDENT CODE GOES HERE
+        xdes = x0 + np.array([ry*cos(f*t),0,rz*sin(f*t)])
+        vdes = np.array([-ry*f*sin(f*t),0,rz*f*cos(f*t)])
 
         # TODO: replace these!
-        xdes = JacobianDemo.x0
-        vdes = np.array([0,0,0])
         Rdes = np.diag([1., -1., -1.])
         ang_vdes = 0.0 * np.array([1.0, 0.0, 0.0])
         ## END STUDENT CODE
         
         return Rdes, ang_vdes, xdes, vdes
 
-    def line(t,f=1.0,L=.15):
+    def line(t,f=0.2,L=.15):
         """
         Calculate the position and velocity of the line trajector
 
@@ -135,8 +135,8 @@ class JacobianDemo():
         ## STUDENT CODE GOES HERE
         x0 = np.array([0.307,0,0.487]) #corresponds to neutral position
         # TODO: replace these!
-        xdes = JacobianDemo.x0
-        vdes = np.array([0,0,0])
+        xdes = x0 + np.array([0, 0, L*sin(f*t)])
+        vdes = np.array([0, 0, L*f*cos(f*t)])
 
         # Example for generating an orientation trajectory
         # The end effector will rotate around the x-axis during the line motion
