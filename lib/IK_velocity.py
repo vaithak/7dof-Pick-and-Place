@@ -34,6 +34,6 @@ def IK_velocity(q_in, v_in, omega_in):
     v_comb = v_comb[~nan_rows, :]
 
     # Use np.linalg.lstsq to solve the least squares problem
-    dq = np.linalg.lstsq(Jmod, v_comb)[0]
+    dq = np.linalg.lstsq(Jmod, v_comb, rcond=None)[0]
     
     return dq.T

@@ -49,6 +49,7 @@ class FK():
         """
 
         # Your Lab 1 code starts here
+        q = q.squeeze()
 
         jointPositions = np.zeros((8,3))
         T0e = np.identity(4)
@@ -101,7 +102,7 @@ class FK():
         
         # For each Ai, the z-axis in their corresponding frame is the first three entries of the third column.
         # Along with this, we also maintain Ri0, the rotation matrix from the ith link frame to the base frame
-        # The axis of rotation in the world frame will be Ri0 @ z_i
+        # The axis of rotation in the world frame will be R0i @ z_i
         axis_of_rotation_list.append(np.array([0, 0, 1]))
         Ri0 = np.identity(3)
         for i in range(6):

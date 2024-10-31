@@ -13,6 +13,7 @@ def calcJacobian(q_in):
     J = np.zeros((6, 7))
 
     ## STUDENT CODE GOES HERE
+    q_in = q_in.squeeze()
 
     fk = FK()
     joint_positions, T0e = fk.forward(q_in)

@@ -18,6 +18,7 @@ def calcManipulability(q_in):
     M = J_pos @ J_pos.T
 
     ## STUDENT CODE STARTS HERE for the mu index, Hint: np.linalg.svd
-    mu = 0.0
+    singular_vals = np.linalg.svd(M, compute_uv=False)
+    mu = np.sqrt(np.abs(np.product(singular_vals)))
 
     return mu, M

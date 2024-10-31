@@ -1,4 +1,4 @@
-import numpy as np 
+import numpy as np
 from lib.calcJacobian import calcJacobian
 
 def FK_velocity(q_in, dq):

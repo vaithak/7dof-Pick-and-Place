@@ -1,12 +1,10 @@
 import numpy as np
 from math import pi, acos
-from scipy.linalg import null_space
 
 from lib.calcJacobian import calcJacobian
 from lib.calculateFK import FK
 from lib.calcAngDiff import calcAngDiff
-# from lib.IK_velocity import IK_velocity  #optional
-
+from lib.IK_velocity import IK_velocity  #optional
 
 class IK:
 
@@ -17,7 +15,7 @@ class IK:
     center = lower + (upper - lower) / 2 # compute middle of range of motion of each joint
     fk = FK()
 
-    def __init__(self,linear_tol=1e-4, angular_tol=1e-3, max_steps=1000, min_step_size=1e-5):
+    def __init__(self,linear_tol=1e-4, angular_tol=1e-2, max_steps=1000, min_step_size=1e-5):
         """
         Constructs an optimization-based IK solver with given solver parameters.
         Default parameters are tuned to reasonable values.
@@ -71,6 +69,9 @@ class IK:
         displacement = np.zeros(3)
         axis = np.zeros(3)
 
+        displacement = target[:3, 3] - current[:3, 3]
+        axis = calcAngDiff(target[:3, :3], current[:3, :3])
+        
         ## END STUDENT CODE
         return displacement, axis
 
@@ -99,6 +100,20 @@ class IK:
         distance = 0
         angle = 0
 
+        # Compute displacement and axis
+        displacement, axis = IK.displacement_and_axis(G, H)
+
+        # Compute distance
+        distance = np.linalg.norm(displacement)
+
+        # Compute R between G and H, using the fact that inverse of rotation matrix is its transpose
+        R = G[:3, :3].T @ H[:3, :3]
+        cos_angle = (np.trace(R) - 1) / 2
+
+        if cos_angle < -1:  cos_angle = -1
+        elif cos_angle > 1: cos_angle = 1
+        angle = acos(cos_angle)
+
         ## END STUDENT CODE
         return distance, angle
 
@@ -120,8 +135,30 @@ class IK:
         """
 
         ## STUDENT CODE STARTS HERE
-        success = False
-        message = "Solution found/not found + reason"
+        success = True
+        message = "Solution is valid"
+
+        # Check joint angle limits
+        for i in range(len(q)):
+            if q[i] < self.lower[i] or q[i] > self.upper[i]:
+                success = False
+                message = "Solution violates joint limit"
+                return success, message
+
+        _, Toe = IK.fk.forward(q)
+        distance, angle = IK.distance_and_angle(Toe, target)
+
+        # check if within linear tolerances
+        if distance > self.linear_tol:
+            success = False
+            message = "Solution not within linear tolerances"
+            return success, message
+
+        # check if within angular tolerances
+        if angle > self.angular_tol:
+            success = False
+            message = "Solution not within angular tolerances"
+            return success, message
 
         ## END STUDENT CODE
         return success, message
@@ -150,6 +187,18 @@ class IK:
 
         ## STUDENT CODE STARTS HERE
         dq = np.zeros(7)
+
+        # Compute displacement and axis
+        _, Toe = IK.fk.forward(q)
+        displacement, axis = IK.displacement_and_axis(target, Toe)
+
+        if method == 'J_pseudo':
+            dq = IK_velocity(q, displacement, axis)
+        elif method == 'J_trans':
+            # combine displacement and axis into a 6x1 vector
+            J = calcJacobian(q)
+            combined = np.concatenate((displacement, axis))
+            dq = J.T @ combined
 
         ## END STUDENT CODE
         return dq
@@ -203,16 +252,16 @@ class IK:
         which achieves the target within the given tolerance. Otherwise False
         rollout - a list containing the guess for q at each iteration of the algorithm
         """
-
         q = seed
         rollout = []
 
         ## STUDENT CODE STARTS HERE
+        step_num = 0
 
-        
         ## gradient descent:
         while True:
             rollout.append(q)
+            step_num += 1
 
             # Primary Task - Achieve End Effector Pose
             dq_ik = IK.end_effector_task(q,target, method)
@@ -220,12 +269,24 @@ class IK:
             # Secondary Task - Center Joints
             dq_center = IK.joint_centering_task(q)
 
+            # Project into null space
+            # J = calcJacobian(q)
+            # J_pinv = np.linalg.pinv(J)
+            # dq_center_null = ((np.identity(7) - J_pinv @ J) @ dq_center.reshape((7,1))).reshape((1,7))
+
+            J = calcJacobian(q)
+            J_pinv = np.matmul(J.transpose(), np.linalg.inv(np.matmul(J, J.transpose())))            
+            dq_center_null = np.matmul((np.identity(7) - np.matmul(J_pinv, J)), dq_center)
+
             ## Task Prioritization
+            dq = alpha*(dq_ik + dq_center_null)
 
             # Check termination conditions
-            break
+            if step_num >= self.max_steps or np.linalg.norm(dq) < self.min_step_size:
+                break
 
             # update q
+            q = q + dq.reshape((7,))
             
 
         ## END STUDENT CODE

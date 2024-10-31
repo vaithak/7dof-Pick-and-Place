@@ -27,6 +27,15 @@ def IK_velocity_null(q_in, v_in, omega_in, b):
     omega_in = np.array(omega_in)
     omega_in = omega_in.reshape((3,1))
 
-
-    return dq + null
-
+    dq = IK_velocity(q_in, v_in, omega_in)
+    J = calcJacobian(q_in)
+    
+    # combined velocity and angular velocity vector
+    v_comb = np.vstack((v_in, omega_in))
+    # Remove rows with NaN
+    nan_rows = np.isnan(v_comb).any(axis=1)
+    Jmod = J[~nan_rows, :]
+    
+    J_pinv = np.linalg.pinv(Jmod)
+    null = (np.identity(J.shape[1]) - J_pinv @ Jmod) @ b
+    return dq + null.reshape((1,7))
