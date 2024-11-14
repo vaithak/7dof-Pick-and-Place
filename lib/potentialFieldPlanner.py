@@ -195,6 +195,7 @@ class PotentialFieldPlanner:
         INPUTS:
         target - 3x9 numpy array representing the desired joint/end effector positions 
         in the world frame - changed to 3x10
+        in the world frame - changed to 3x10
         obstacle - nx6 numpy array representing the obstacle box min and max positions
         in the world frame
         current- 3x9 numpy array representing the current joint/end effector positions 
@@ -249,6 +250,7 @@ class PotentialFieldPlanner:
 
         INPUTS:
         joint_forces - 3x9 numpy array representing the force vectors on each 
+        joint/end effector - changed to 3x10
         joint/end effector - changed to 3x10
         q - 1x7 numpy array representing the current joint angles
 
@@ -531,6 +533,7 @@ if __name__ == "__main__":
     planner = PotentialFieldPlanner(tol, max_steps, min_step_size, custom_params)
     
     # inputs 
+    map_struct = loadmap("maps/map1.txt")
     map_struct = loadmap("maps/map1.txt")
     start = np.array([0,-1,0,-2,0,1.57,0])
     current_position, _ = planner.fk.forward_expanded(start)
