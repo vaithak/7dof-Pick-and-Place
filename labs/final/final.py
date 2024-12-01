@@ -308,6 +308,8 @@ class PickAndPlace:
         desired_end_effector_pose[:3, 1] = chosen_y
         self.debug_print(f"Desired end-effector pose for grasping block {block_name}:\n {desired_end_effector_pose}")
 
+        # TODO: bring a bit closer to the platform NECESSARY
+
         # Manually align the x-axis of the end-effector with the x-axis of the block
         self.manual_x_align(chosen_x, best_angle)
 
@@ -365,7 +367,8 @@ class PickAndPlace:
         self.arm.open_gripper()
 
         # Verify the block is placed 
-        # TODO maybe use the camera
+        # TODO maybe use the camera - measure the z-coordinate of the topmost block
+        # Will be tough, what if the camera detects side view of some bottom april tag.
         
         self.debug_print(f"Placed block {block_name} on the tower.")
 
