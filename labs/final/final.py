@@ -120,7 +120,7 @@ class PickAndPlace:
         # Cached joint angles
         self.cached_joint_angles = {
             'safe_static_ee_pose_base': np.array([-0.178, -0.113, -0.141, -1.885, -0.016, 1.773, 0.472]),
-            'safe_tower_ee_pose_base': np.array([[ 0.048, -0.306,  0.279, -2.073,  0.085, 1.777, 1.082]])
+            'safe_tower_ee_pose_base': np.array([ 0.048, -0.306,  0.279, -2.073,  0.085, 1.777, 1.082])
         }
 
 
@@ -223,7 +223,7 @@ class PickAndPlace:
         if not found_in_cache:
             current_joint_positions = self.arm.get_positions()
             solution, rollout, success, __ = self.IK_solver.inverse(
-                target_pose, current_joint_positions, method='J_pseudo', alpha=0.2)
+                target_pose, current_joint_positions, method='J_pseudo', alpha=0.5)
             if not success:
                 print("Failed to find a solution for the target pose.")
                 return
@@ -232,6 +232,23 @@ class PickAndPlace:
         # Move to the target pose
         self.arm.safe_move_to_position(solution)
         self.debug_print(f"Moved to target pose:\n {target_pose}")
+
+
+    """
+    Manually align end-effector x-axis with the provided axis. 
+    Assume that they are both perpendicular to the base z-axis. So,
+    only add/subtract angle between them to the last joint angle of the arm.
+    You are also provided with the calculated angle between the two axes.
+    """
+    def manual_x_align(self, desired_x_axis, calculated_angle):
+        current_joint_positions = self.arm.get_positions()
+        curr_x_axis = np.array([1, 0, 0])
+        # Decide the direction of the angle
+        if np.cross(curr_x_axis, desired_x_axis)[2] < 0:
+            calculated_angle *= -1
+        current_joint_positions[-1] += calculated_angle
+        self.arm.safe_move_to_position(current_joint_positions)
+        self.debug_print(f"Manually aligned x-axis with the provided axis.")
 
 
     """
@@ -254,14 +271,28 @@ class PickAndPlace:
         axis = np.argmax(np.abs(block_pose_base[2, :3]))
         self.debug_print(f"Axis with max value: {axis}")
         chosen_x = None
+        best_angle = np.pi
         for i in range(3):
             if i != axis:
-                chosen_x = block_pose_base[:3, i]
-                break
+                curr_x = block_pose_base[:3, i]
+                # measure angle between curr_x and [1, 0, 0], assume norm is 1
+                curr_angle = np.arccos(np.dot(curr_x, [1, 0, 0]))
+                neg_angle = np.pi - curr_angle
+                # Choose the one with the smallest angle out of curr_x and -curr_x
+                if neg_angle < curr_angle:
+                    curr_angle = neg_angle
+                    curr_x = -curr_x
+                # Choose the best overall angle
+                if curr_angle < best_angle:
+                    best_angle = curr_angle
+                    chosen_x = curr_x
         chosen_y = np.cross(chosen_z, chosen_x)
         desired_end_effector_pose[:3, 0] = chosen_x
         desired_end_effector_pose[:3, 1] = chosen_y
         self.debug_print(f"Desired end-effector pose for grasping block {block_name}:\n {desired_end_effector_pose}")
+
+        # Manually align the x-axis of the end-effector with the x-axis of the block
+        self.manual_x_align(chosen_x, best_angle)
 
         # Move to the block
         self.move_to_target(desired_end_effector_pose)
@@ -326,15 +357,14 @@ class PickAndPlace:
     The main control loop for the pick and place task.
     """
     def pick_and_place(self):
-
-        # Always first move to the start position after opening the gripper
-        self.arm.open_gripper()
-        self.arm.safe_move_to_position(self.start_position)
-
         num_iterations = 4
 
         while num_iterations > 0:
             num_iterations -= 1
+
+            # Always first move to the start position after opening the gripper
+            self.arm.open_gripper()
+            self.arm.safe_move_to_position(self.start_position)
 
             # Check the mode
             if self.mode == 'static' and self.placed_static_blocks < 4:
