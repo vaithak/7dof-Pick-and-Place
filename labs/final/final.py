@@ -76,7 +76,7 @@ class PickAndPlace:
         safe_y = self.platform_center_y_world - self.world_to_base_y
 
         safe_position_ee = np.array([
-                    self.platform_center_x,
+                    self.platform_center_x - self.platform_size/4, # more back to ensure no collision
                     safe_y,
                     safe_z
                 ])
@@ -112,6 +112,11 @@ class PickAndPlace:
         self.mode = 'static'
         self.placed_static_blocks = 0
         self.placed_moving_blocks = 0
+
+        # Cached joint angles
+        self.cached_joint_angles = {
+            'safe_static_ee_pose_base': np.array([-0.178, -0.113, -0.141, -1.885, -0.016, 1.773, 0.472])
+        }
 
 
     """
@@ -194,19 +199,26 @@ class PickAndPlace:
     Given a target pose in base frame, plan a path and execute the path to reach that pose.
     """
     def move_to_target(self, target_pose):
-        # We can also hard code some stuff here - TODO
-        current_joint_positions = self.arm.get_positions()
-        solution, rollout, success, __ = self.IK_solver.inverse(
-            target_pose, current_joint_positions, method='J_trans', alpha=0.5)
-        if not success:
-            print("Failed to find a solution for the target pose.")
-            return
-        self.debug_print(f"Joint angles found using IK solver: {solution}")
-        success = self.arm.safe_move_to_position(solution)
-        if not success:
-            print("Failed to move to the target pose.")
-            return
-        
+        found_in_cache = False
+        solution = None
+
+        # Check in cached joint angles
+        if np.allclose(target_pose, self.safe_static_ee_pose_base):
+            if 'safe_static_ee_pose_base' in self.cached_joint_angles:
+                solution = self.cached_joint_angles['safe_static_ee_pose_base']
+                found_in_cache = True
+
+        if not found_in_cache:
+            current_joint_positions = self.arm.get_positions()
+            solution, rollout, success, __ = self.IK_solver.inverse(
+                target_pose, current_joint_positions, method='J_trans', alpha=0.5)
+            if not success:
+                print("Failed to find a solution for the target pose.")
+                return
+            self.debug_print(f"Joint angles found using IK solver: {solution}")
+
+        # Move to the target pose
+        self.arm.safe_move_to_position(solution)
         self.debug_print(f"Moved to target pose\n: {target_pose}")
 
 
@@ -329,7 +341,7 @@ if __name__ == "__main__":
         print('Team must be red or blue - make sure you are running final.launch!')
         exit()
 
-    rospy.init_node("team_script")
+    rospy.init_node("pick_and_place_node")
 
     arm = ArmController()
     detector = ObjectDetector()
