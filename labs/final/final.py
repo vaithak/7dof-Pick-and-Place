@@ -75,7 +75,7 @@ class PickAndPlace:
         ])
 
         # Compute the safe coordinates above the center of the platform
-        # where the static blocks are placed. Keep safe altitude of 0.4 m.
+        # where the static blocks are placed. Keep safe altitude of 0.25 m
         safe_z = self.platform_altitude + 0.25
         safe_y = self.platform_center_y_world - self.world_to_base_y
 
@@ -119,8 +119,14 @@ class PickAndPlace:
 
         # Cached joint angles
         self.cached_joint_angles = {
-            'safe_static_ee_pose_base': np.array([-0.178, -0.113, -0.141, -1.885, -0.016, 1.773, 0.472]),
-            'safe_tower_ee_pose_base': np.array([ 0.048, -0.306,  0.279, -2.073,  0.085, 1.777, 1.082])
+            'red': {
+                'safe_static_ee_pose_base': np.array([-0.178, -0.113, -0.141, -1.885, -0.016, 1.773, 0.472]),
+                'safe_tower_ee_pose_base': np.array([ 0.048, -0.306,  0.279, -2.073,  0.085, 1.777, 1.082])
+            },
+            'blue': {
+                # 'safe_static_ee_pose_base': np.array([ 0.178, -0.113,  0.141, -1.885,  0.016, 1.773, 0.472]),
+                # 'safe_tower_ee_pose_base': np.array([-0.048, -0.306, -0.279, -2.073, -0.085, 1.777, 1.082])
+            }
         }
 
 
@@ -212,21 +218,30 @@ class PickAndPlace:
 
         # Check in cached joint angles
         if np.allclose(target_pose, self.safe_static_ee_pose_base):
-            if 'safe_static_ee_pose_base' in self.cached_joint_angles:
-                solution = self.cached_joint_angles['safe_static_ee_pose_base']
+            if 'safe_static_ee_pose_base' in self.cached_joint_angles[self.team]:
+                solution = self.cached_joint_angles[self.team]['safe_static_ee_pose_base']
                 found_in_cache = True
         elif np.allclose(target_pose, self.safe_tower_ee_pose_base):
-            if 'safe_tower_ee_pose_base' in self.cached_joint_angles:
-                solution = self.cached_joint_angles['safe_tower_ee_pose_base']
+            if 'safe_tower_ee_pose_base' in self.cached_joint_angles[self.team]:
+                solution = self.cached_joint_angles[self.team]['safe_tower_ee_pose_base']
                 found_in_cache = True
 
         if not found_in_cache:
             current_joint_positions = self.arm.get_positions()
-            solution, rollout, success, __ = self.IK_solver.inverse(
-                target_pose, current_joint_positions, method='J_pseudo', alpha=0.5)
+            num_trials = 3
+            success = False
+            for i in range(num_trials):
+                # Use the IK solver to find a joint angle solution
+                solution, rollout, success, __ = self.IK_solver.inverse(
+                    target_pose, current_joint_positions, method='J_pseudo', alpha=0.5)
+                if success:
+                    break
+                self.debug_print(f"Failed to find a solution for the target pose. Retrying...")
+
             if not success:
                 print("Failed to find a solution for the target pose.")
                 return
+            
             self.debug_print(f"Joint angles found using IK solver: {solution}")
 
         # Move to the target pose
