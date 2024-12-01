@@ -75,7 +75,7 @@ class PickAndPlace:
         ])
 
         # Compute the safe coordinates above the center of the platform
-        # where the static blocks are placed. Keep safe altitude of 0.4 m.
+        # where the static blocks are placed. Keep safe altitude of 0.25 m
         safe_z = self.platform_altitude + 0.25
         safe_y = self.platform_center_y_world - self.world_to_base_y
 
@@ -222,11 +222,20 @@ class PickAndPlace:
 
         if not found_in_cache:
             current_joint_positions = self.arm.get_positions()
-            solution, rollout, success, __ = self.IK_solver.inverse(
-                target_pose, current_joint_positions, method='J_pseudo', alpha=0.5)
+            num_trials = 3
+            success = False
+            for i in range(num_trials):
+                # Use the IK solver to find a joint angle solution
+                solution, rollout, success, __ = self.IK_solver.inverse(
+                    target_pose, current_joint_positions, method='J_pseudo', alpha=0.5)
+                if success:
+                    break
+                self.debug_print(f"Failed to find a solution for the target pose. Retrying...")
+
             if not success:
                 print("Failed to find a solution for the target pose.")
                 return
+            
             self.debug_print(f"Joint angles found using IK solver: {solution}")
 
         # Move to the target pose
