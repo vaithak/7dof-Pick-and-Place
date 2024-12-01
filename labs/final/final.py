@@ -111,6 +111,21 @@ class PickAndPlace:
         ])
         self.debug_print(f"Safe tower block pose in base frame:\n {self.safe_tower_ee_pose_base}")
 
+        # Define a safe intermediate pose for the end-effector above the static platform.
+        # This will be useful to first move the arm to this pose before moving to the
+        # grasping pose - better for convergence of the IK solver.
+        safe_position_ee = np.array([
+                safe_position_ee[0],
+                safe_position_ee[1],
+                self.platform_altitude + self.block_size + 0.15
+            ])
+        self.safe_intermediate_static_ee_pose_base = np.array([
+            [1, 0, 0, safe_position_ee[0]],
+            [0, -1, 0, safe_position_ee[1]],
+            [0, 0, -1, safe_position_ee[2]],
+            [0, 0, 0, 1]
+        ])
+
         # Mode to define whether we are aiming for the static block 
         # or the moving block.
         self.mode = 'static'
@@ -121,11 +136,13 @@ class PickAndPlace:
         self.cached_joint_angles = {
             'red': {
                 'safe_static_ee_pose_base': np.array([-0.178, -0.113, -0.141, -1.885, -0.016, 1.773, 0.472]),
-                'safe_tower_ee_pose_base': np.array([ 0.048, -0.306,  0.279, -2.073,  0.085, 1.777, 1.082])
+                'safe_tower_ee_pose_base': np.array([ 0.048, -0.306,  0.279, -2.073,  0.085, 1.777, 1.082]),
+                'safe_intermediate_static_ee_pose_base': np.array([-0.13878, 0.08043, -0.15924, -1.78304, 0.01332, 1.86244, 0.48407]),
             },
             'blue': {
                 'safe_static_ee_pose_base': np.array([0.107, -0.115, 0.207, -1.885, 0.024, 1.772, 1.093]),
-                'safe_tower_ee_pose_base': np.array([-0.230, -0.295, -0.121, -2.073, -0.0360, 1.780, 0.447])
+                'safe_tower_ee_pose_base': np.array([-0.230, -0.295, -0.121, -2.073, -0.0360, 1.780, 0.447]),
+                'safe_intermediate_static_ee_pose_base': np.array([0.18416, 0.07999, 0.11214, -1.78303, -0.00938, 1.86251, 1.084]),
             }
         }
 
@@ -227,6 +244,11 @@ class PickAndPlace:
                 solution = self.cached_joint_angles[self.team]['safe_tower_ee_pose_base']
                 found_in_cache = True
                 self.debug_print(f"Found joint angles in cache for safe tower pose:\n {solution}")
+        elif np.allclose(target_pose, self.safe_intermediate_static_ee_pose_base):
+            if 'safe_intermediate_static_ee_pose_base' in self.cached_joint_angles[self.team]:
+                solution = self.cached_joint_angles[self.team]['safe_intermediate_static_ee_pose_base']
+                found_in_cache = True
+                self.debug_print(f"Found joint angles in cache for safe intermediate static pose:\n {solution}")
 
         if not found_in_cache:
             current_joint_positions = self.arm.get_positions()
@@ -308,7 +330,8 @@ class PickAndPlace:
         desired_end_effector_pose[:3, 1] = chosen_y
         self.debug_print(f"Desired end-effector pose for grasping block {block_name}:\n {desired_end_effector_pose}")
 
-        # TODO: bring a bit closer to the platform NECESSARY
+        # Move to the intermediate pose above the block
+        self.move_to_target(self.safe_intermediate_static_ee_pose_base)
 
         # Manually align the x-axis of the end-effector with the x-axis of the block
         self.manual_x_align(chosen_x, best_angle)
