@@ -61,6 +61,10 @@ class PickAndPlace:
 
         self.block_size = 0.05
 
+        # Store H_ee_camera
+        self.H_ee_camera = self.detector.get_H_ee_camera()
+        self.debug_print(f"H_ee_camera:\n {self.H_ee_camera}")
+
         # Use the above information to compute the transformation matrix from
         # the base of the robot to the world frame.
         self.H_world_base = np.array([
@@ -91,7 +95,7 @@ class PickAndPlace:
             [0, 0, -1, safe_position_ee[2]],
             [0, 0, 0, 1]
         ])
-        self.debug_print(f"Safe static block pose in base frame\n: {self.safe_static_ee_pose_base}")
+        self.debug_print(f"Safe static block pose in base frame:\n {self.safe_static_ee_pose_base}")
 
         # Define a safe pose for the end-effector above the tower-building area.
         safe_position_ee = np.array([
@@ -105,7 +109,7 @@ class PickAndPlace:
             [0, 0, -1, safe_position_ee[2]],
             [0, 0, 0, 1]
         ])
-        self.debug_print(f"Safe tower block pose in base frame\n: {self.safe_tower_ee_pose_base}")
+        self.debug_print(f"Safe tower block pose in base frame:\n {self.safe_tower_ee_pose_base}")
 
         # Mode to define whether we are aiming for the static block 
         # or the moving block.
@@ -132,8 +136,7 @@ class PickAndPlace:
     Convert from camera frame to robot base frame
     """
     def camera_to_base(self, camera_pose):
-        H_ee_camera = self.detector.get_H_ee_camera()
-        return self.ee_to_base(H_ee_camera @ camera_pose)
+        return self.ee_to_base(self.H_ee_camera @ camera_pose)
 
 
     """
@@ -156,7 +159,7 @@ class PickAndPlace:
     def detect_static_blocks(self):
         static_blocks = []
         for (name, pose) in self.detector.get_detections():
-            self.debug_print(f"Detected block: {name} at pose\n: {pose}")
+            self.debug_print(f"Detected block: {name} at pose:\n {pose}")
             if self.valid_static_block(pose):
                 static_blocks.append((name, pose))
                 self.debug_print(f"Block {name} is a valid static block!")
@@ -219,7 +222,7 @@ class PickAndPlace:
 
         # Move to the target pose
         self.arm.safe_move_to_position(solution)
-        self.debug_print(f"Moved to target pose\n: {target_pose}")
+        self.debug_print(f"Moved to target pose:\n {target_pose}")
 
 
     """
@@ -228,7 +231,7 @@ class PickAndPlace:
     safe position above the static platform.
     """
     def grasp_static_block(self, block_name, block_pose):
-        self.debug_print(f"Grasping block {block_name} at pose\n: {block_pose}")
+        self.debug_print(f"Grasping block {block_name} at pose:\n {block_pose}")
 
         # Move to the block
         self.move_to_target(block_pose)
