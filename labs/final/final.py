@@ -13,7 +13,7 @@ from lib.calculateFK import FK
 # for timing that is consistent with simulation or real time as appropriate
 from core.utils import time_in_seconds
 
-DEBUG = False
+DEBUG = True
 
 class PickAndPlace:
     def __init__(self,
@@ -93,8 +93,7 @@ class PickAndPlace:
             [0, 0, -1, safe_position_ee[2]],
             [0, 0, 0, 1]
         ])
-        if DEBUG:
-            print(f"Safe static block pose in base frame\n: {self.safe_static_ee_pose_base}")
+        self.debug_print(f"Safe static block pose in base frame\n: {self.safe_static_ee_pose_base}")
 
         # Define a safe pose for the end-effector above the tower-building area.
         safe_position_ee = np.array([
@@ -108,8 +107,7 @@ class PickAndPlace:
             [0, 0, -1, safe_position_ee[2]],
             [0, 0, 0, 1]
         ])
-        if DEBUG:
-            print(f"Safe tower block pose in base frame\n: {self.safe_tower_ee_pose_base}")
+        self.debug_print(f"Safe tower block pose in base frame\n: {self.safe_tower_ee_pose_base}")
 
         # Mode to define whether we are aiming for the static block 
         # or the moving block.
@@ -140,6 +138,13 @@ class PickAndPlace:
     """
     def base_to_world(self, base_pose):
         return self.H_world_base @ base_pose
+    
+
+    """
+    Conditional print function for debugging.
+    """
+    def debug_print(self, message):
+        if DEBUG: print(message)
 
 
     """
@@ -149,12 +154,10 @@ class PickAndPlace:
         detected_blocks = self.detector.get_detections()
         static_blocks = []
         for (name, pose) in detected_blocks:
-            if DEBUG:
-                print(f"Detected block: {name} at pose\n: {pose}")
+            self.debug_print(f"Detected block: {name} at pose\n: {pose}")
             if self.valid_static_block(pose):
                 static_blocks.append((name, pose))
-                if DEBUG:
-                    print(f"Block {name} is a valid static block!")
+                self.debug_print(f"Block {name} is a valid static block!")
         return static_blocks
 
 
@@ -194,9 +197,20 @@ class PickAndPlace:
     Given a target pose in base frame, plan a path and execute the path to reach that pose.
     """
     def move_to_target(self, target_pose):
-        # TODO: Implement this function
-        # We can also hard code some stuff here
-        pass
+        # We can also hard code some stuff here - TODO
+        current_joint_positions = self.arm.get_positions()
+        solution, rollout, success, __ = self.IK_solver.inverse(
+            target_pose, current_joint_positions, method='J_trans', alpha=0.5)
+        if not success:
+            print("Failed to find a solution for the target pose.")
+            return
+        
+        success = self.arm.move_to_positions(solution)
+        if not success:
+            print("Failed to move to the target pose.")
+            return
+        
+        self.debug_print(f"Moved to target pose\n: {target_pose}")
 
 
     """
@@ -205,12 +219,23 @@ class PickAndPlace:
     safe position above the static platform.
     """
     def grasp_static_block(self, block_name, block_pose):
-        if DEBUG:
-            print(f"Grasping block {block_name} at pose\n: {block_pose}")
+        self.debug_print(f"Grasping block {block_name} at pose\n: {block_pose}")
 
-        # TODO: Implement this function
-        pass
+        # Move to the block
+        self.move_to_target(block_pose)
 
+        # Close the gripper and apply some force
+        self.arm.exec_gripper_cmd(pos = 0.049, force = 40)
+
+        # Verify the block is grasped
+        gripper_state = self.arm.get_gripper_state()
+        if gripper_state['force'][0] < 30:
+            print(f"Failed to grasp block {block_name}.")
+            return False
+        
+        self.debug_print(f"Grasped block {block_name}.")
+        return True
+            
 
     """
     Place the block on the tower.
@@ -218,11 +243,40 @@ class PickAndPlace:
     safe position above the tower-building area.
     """
     def place_block(self, block_name):
-        if DEBUG:
-            print(f"Placing block {block_name} on the tower.")
+        self.debug_print(f"Placing block {block_name} on the tower.")
 
-        # TODO: Implement this function
-        pass
+        # Find the pose where the block should be placed
+        # The block should be placed on top of the tower
+        # at the center of the platform. The pose of the end-effector
+        # while placing the block is such that z-axis is pointing down,
+        # x-axis is same as the robot base frame and y-axis is opposite
+        # to the robot base frame.
+        placed_blocks_count = self.placed_static_blocks + self.placed_moving_blocks
+        block_position_ee = np.array([
+            self.platform_center_x,
+            -self.platform_end_y_world + self.world_to_base_y,
+            self.platform_altitude + self.block_size * (placed_blocks_count + 1)
+        ])
+        block_pose_ee = np.array([
+            [1, 0, 0, block_position_ee[0]],
+            [0, -1, 0, block_position_ee[1]],
+            [0, 0, -1, block_position_ee[2]],
+            [0, 0, 0, 1]
+        ])
+
+        # Move to the block placement pose
+        self.move_to_target(block_pose_ee)
+
+        # Reduce the force and open the gripper - just more than the block size
+        self.arm.exec_gripper_cmd(pos = self.block_size + 0.002, force = 10)
+
+        # Verify the block is placed 
+        # TODO maybe use the camera
+        
+        self.debug_print(f"Placed block {block_name} on the tower.")
+
+        # Move back to the safe position above the tower-building area
+        self.move_to_target(self.safe_tower_ee_pose_base)
 
 
     """
@@ -239,39 +293,36 @@ class PickAndPlace:
         while num_iterations > 0:
             num_iterations -= 1
 
-        # Check the mode
-        if self.mode == 'static':
-            if self.placed_static_blocks == 4:
-                print("All static blocks placed. Moving to moving blocks now.")
-                
-            # Move to the safe position above the static platform
-            self.move_to_target(self.safe_static_ee_pose_base)
-
-            # Detect blocks
-            detected_static_blocks = self.detect_static_blocks()
-
-            # Choose one block to pick
-            if len(detected_static_blocks) > 0:
-                # Choose any one block
-                block_name, block_pose = detected_static_blocks[0]
-
-                if DEBUG:
-                    print(f"Block {block_name} is chosen for pick and place.")
-
-                self.grasp_static_block(block_name, block_pose)
-
+            # Check the mode
+            if self.mode == 'static' and self.placed_static_blocks < 4:
                 # Move to the safe position above the static platform
                 self.move_to_target(self.safe_static_ee_pose_base)
 
-                # Move to the safe position above the tower-building area
-                self.move_to_target(self.safe_tower_ee_pose_base)
+                # Detect blocks
+                detected_static_blocks = self.detect_static_blocks()
 
-                # Place the block
-                self.place_block(block_name)
-                
-            else:
-                if DEBUG:
+                # Choose one block to pick
+                if len(detected_static_blocks) > 0:
+                    # Choose any one block
+                    block_name, block_pose = detected_static_blocks[0]
+                    self.debug_print(f"Block {block_name} is chosen for pick and place.")
+
+                    if self.grasp_static_block(block_name, block_pose):
+                        # Move to the safe position above the static platform
+                        self.move_to_target(self.safe_static_ee_pose_base)
+
+                        # Move to the safe position above the tower-building area
+                        self.move_to_target(self.safe_tower_ee_pose_base)
+
+                        # Place the block
+                        self.place_block(block_name)
+
+                        # Update the count of placed static blocks
+                        self.placed_static_blocks += 1
+                        self.debug_print(f"Placed {self.placed_static_blocks} static blocks.")
+                else:
                     print("No valid static blocks detected.")
+                    
 
 
 if __name__ == "__main__":
@@ -302,5 +353,6 @@ if __name__ == "__main__":
 
     # Initialize the pick and place class
     pick_and_place = PickAndPlace(team, arm, detector, start_position)
+    pick_and_place.pick_and_place()
 
     # END STUDENT CODE
