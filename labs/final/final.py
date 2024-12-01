@@ -244,7 +244,7 @@ class PickAndPlace:
         current_joint_positions = self.arm.get_positions()
         curr_x_axis = np.array([1, 0, 0])
         # Decide the direction of the angle
-        if np.cross(curr_x_axis, desired_x_axis)[2] < 0:
+        if np.cross(curr_x_axis, desired_x_axis)[2] > 0:
             calculated_angle *= -1
         current_joint_positions[-1] += calculated_angle
         self.arm.safe_move_to_position(current_joint_positions)
@@ -343,6 +343,9 @@ class PickAndPlace:
 
         # Reduce the force and open the gripper - just more than the block size
         self.arm.exec_gripper_cmd(pos = self.block_size + 0.002, force = 10)
+
+        # Then open the gripper
+        self.arm.open_gripper()
 
         # Verify the block is placed 
         # TODO maybe use the camera
