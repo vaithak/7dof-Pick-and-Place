@@ -124,8 +124,8 @@ class PickAndPlace:
                 'safe_tower_ee_pose_base': np.array([ 0.048, -0.306,  0.279, -2.073,  0.085, 1.777, 1.082])
             },
             'blue': {
-                # 'safe_static_ee_pose_base': np.array([ 0.178, -0.113,  0.141, -1.885,  0.016, 1.773, 0.472]),
-                # 'safe_tower_ee_pose_base': np.array([-0.048, -0.306, -0.279, -2.073, -0.085, 1.777, 1.082])
+                'safe_static_ee_pose_base': np.array([0.107, -0.115, 0.207, -1.885, 0.024, 1.772, 1.093]),
+                'safe_tower_ee_pose_base': np.array([-0.230, -0.295, -0.121, -2.073, -0.0360, 1.780, 0.447])
             }
         }
 
@@ -221,10 +221,12 @@ class PickAndPlace:
             if 'safe_static_ee_pose_base' in self.cached_joint_angles[self.team]:
                 solution = self.cached_joint_angles[self.team]['safe_static_ee_pose_base']
                 found_in_cache = True
+                self.debug_print(f"Found joint angles in cache for safe static pose:\n {solution}")
         elif np.allclose(target_pose, self.safe_tower_ee_pose_base):
             if 'safe_tower_ee_pose_base' in self.cached_joint_angles[self.team]:
                 solution = self.cached_joint_angles[self.team]['safe_tower_ee_pose_base']
                 found_in_cache = True
+                self.debug_print(f"Found joint angles in cache for safe tower pose:\n {solution}")
 
         if not found_in_cache:
             current_joint_positions = self.arm.get_positions()
