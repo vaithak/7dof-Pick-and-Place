@@ -55,9 +55,9 @@ class PickAndPlace:
         self.platform_size = 0.25
         self.platform_center_x = 0.562
 
-        self.platform_end_y_world = 1.159
+        self.platform_center_y_world = 1.159
         if team == 'red':
-            self.platform_end_y_world *= -1
+            self.platform_center_y_world *= -1
 
         self.block_size = 0.05
 
@@ -72,13 +72,11 @@ class PickAndPlace:
 
         # Compute the safe coordinates above the center of the platform
         # where the static blocks are placed. Keep safe altitude of 0.4 m.
-        safe_z = self.platform_altitude + 0.4
-        safe_y = self.platform_end_y_world - self.world_to_base_y
-        if team == 'red':   safe_y = safe_y + self.platform_size/2
-        else:   safe_y = safe_y - self.platform_size/2
+        safe_z = self.platform_altitude + 0.25
+        safe_y = self.platform_center_y_world - self.world_to_base_y
 
         safe_position_ee = np.array([
-                    self.platform_center_x - 3*self.platform_size/4,
+                    self.platform_center_x,
                     safe_y,
                     safe_z
                 ])
@@ -151,9 +149,8 @@ class PickAndPlace:
     Detect static blocks on the platform. No velocity information is needed.
     """
     def detect_static_blocks(self):
-        detected_blocks = self.detector.get_detections()
         static_blocks = []
-        for (name, pose) in detected_blocks:
+        for (name, pose) in self.detector.get_detections():
             self.debug_print(f"Detected block: {name} at pose\n: {pose}")
             if self.valid_static_block(pose):
                 static_blocks.append((name, pose))
@@ -181,7 +178,7 @@ class PickAndPlace:
         # Check if the block is within the platform
         if abs(x_world - self.platform_center_x) > self.platform_size/2 + error_margin:
             return False
-        if abs(y_world - self.platform_end_y_world) > self.platform_size + error_margin:
+        if abs(y_world - self.platform_center_y_world) > self.platform_size/2 + error_margin:
             return False
         # Z-coordinate from the world frame should be within the 
         # platform altitude + block size +- error margin range.
@@ -204,8 +201,8 @@ class PickAndPlace:
         if not success:
             print("Failed to find a solution for the target pose.")
             return
-        
-        success = self.arm.move_to_positions(solution)
+        self.debug_print(f"Joint angles found using IK solver: {solution}")
+        success = self.arm.safe_move_to_position(solution)
         if not success:
             print("Failed to move to the target pose.")
             return
@@ -254,7 +251,7 @@ class PickAndPlace:
         placed_blocks_count = self.placed_static_blocks + self.placed_moving_blocks
         block_position_ee = np.array([
             self.platform_center_x,
-            -self.platform_end_y_world + self.world_to_base_y,
+            -self.platform_center_y_world + self.world_to_base_y,
             self.platform_altitude + self.block_size * (placed_blocks_count + 1)
         ])
         block_pose_ee = np.array([
