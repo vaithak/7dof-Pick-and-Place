@@ -154,4 +154,3 @@ if __name__ == "__main__":
     print("Joint Positions:\n",joint_positions)
     print("End Effector Pose:\n",T0e)
     print("Axis of Rotation:\n",axis_of_rotation)
-
