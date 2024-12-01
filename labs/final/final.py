@@ -119,7 +119,8 @@ class PickAndPlace:
 
         # Cached joint angles
         self.cached_joint_angles = {
-            'safe_static_ee_pose_base': np.array([-0.178, -0.113, -0.141, -1.885, -0.016, 1.773, 0.472])
+            'safe_static_ee_pose_base': np.array([-0.178, -0.113, -0.141, -1.885, -0.016, 1.773, 0.472]),
+            'safe_tower_ee_pose_base': np.array([[ 0.048, -0.306,  0.279, -2.073,  0.085, 1.777, 1.082]])
         }
 
 
@@ -172,7 +173,7 @@ class PickAndPlace:
     false positives.
     """
     def valid_static_block(self, detected_block_pose):
-        # Error margin
+        # Error margin - TODO: Test on the real robot
         error_margin = 0.01
 
         # Convert to base frame
@@ -193,6 +194,7 @@ class PickAndPlace:
             return False
         # Z-coordinate from the world frame should be within the 
         # platform altitude + block size +- error margin range.
+        # TODO: Test on the real robot, it should self.block_size/2 or self.block_size.
         if z_world < self.platform_altitude + self.block_size/2 - error_margin:
             return False
         if z_world > self.platform_altitude + self.block_size/2 + error_margin:
@@ -213,11 +215,15 @@ class PickAndPlace:
             if 'safe_static_ee_pose_base' in self.cached_joint_angles:
                 solution = self.cached_joint_angles['safe_static_ee_pose_base']
                 found_in_cache = True
+        elif np.allclose(target_pose, self.safe_tower_ee_pose_base):
+            if 'safe_tower_ee_pose_base' in self.cached_joint_angles:
+                solution = self.cached_joint_angles['safe_tower_ee_pose_base']
+                found_in_cache = True
 
         if not found_in_cache:
             current_joint_positions = self.arm.get_positions()
             solution, rollout, success, __ = self.IK_solver.inverse(
-                target_pose, current_joint_positions, method='J_pseudo', alpha=0.5)
+                target_pose, current_joint_positions, method='J_pseudo', alpha=0.2)
             if not success:
                 print("Failed to find a solution for the target pose.")
                 return
@@ -236,22 +242,39 @@ class PickAndPlace:
     def grasp_static_block(self, block_name, block_pose):
         # Convert to base frame
         block_pose_base = self.camera_to_base(block_pose)
-        self.debug_print(f"Grasping block {block_name} at pose:\n {block_pose_base}")
 
-        # Fix z-orientation to be pointing down
-        block_pose_base[:3, 2] = np.array([0, 0, -1])
+        desired_end_effector_pose = deepcopy(block_pose_base)
+        chosen_z = np.array([0, 0, -1])
+        desired_end_effector_pose[:3, 2] = chosen_z
+        self.debug_print(f"Grasping block {block_name} at pose:\n {block_pose_base}")
+        # One of the axis is aligned with z or -z, this can be found
+        # by checking the max value of 3rd row of the pose matrix.
+        # The rest two axis should be choosen as x and y for the end-effector
+        # frame. This will be useful for the grasp pose.
+        axis = np.argmax(np.abs(block_pose_base[2, :3]))
+        self.debug_print(f"Axis with max value: {axis}")
+        chosen_x = None
+        for i in range(3):
+            if i != axis:
+                chosen_x = block_pose_base[:3, i]
+                break
+        chosen_y = np.cross(chosen_z, chosen_x)
+        desired_end_effector_pose[:3, 0] = chosen_x
+        desired_end_effector_pose[:3, 1] = chosen_y
+        self.debug_print(f"Desired end-effector pose for grasping block {block_name}:\n {desired_end_effector_pose}")
 
         # Move to the block
-        self.move_to_target(block_pose_base)
+        self.move_to_target(desired_end_effector_pose)
 
         # Close the gripper and apply some force
-        self.arm.exec_gripper_cmd(pos = 0.049, force = 40)
+        self.arm.exec_gripper_cmd(pos = 0.040, force = 50)
 
         # Verify the block is grasped
         gripper_state = self.arm.get_gripper_state()
-        if gripper_state['force'][0] < 30:
-            print(f"Failed to grasp block {block_name}.")
-            return False
+        # TODO: Add this on the real robot, simulation is not accurate
+        # if gripper_state['force'][0] < 20:
+            # print(f"Failed to grasp block {block_name}.")
+            # return False
         
         self.debug_print(f"Grasped block {block_name}.")
         return True
@@ -308,7 +331,7 @@ class PickAndPlace:
         self.arm.open_gripper()
         self.arm.safe_move_to_position(self.start_position)
 
-        num_iterations = 1
+        num_iterations = 4
 
         while num_iterations > 0:
             num_iterations -= 1
