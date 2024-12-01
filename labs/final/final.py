@@ -179,6 +179,9 @@ class PickAndPlace:
         block_pose_base = self.camera_to_base(detected_block_pose)
         block_pose_world = self.base_to_world(block_pose_base)
 
+        # Print the block pose in the world frame
+        self.debug_print(f"Block pose in world frame:\n {block_pose_world}")
+
         # Extract the x, y, z coordinates from the pose - these are the coordinates
         # of the block center in the base frame.
         x_world, y_world, z_world = block_pose_world[:3, 3]
@@ -190,9 +193,9 @@ class PickAndPlace:
             return False
         # Z-coordinate from the world frame should be within the 
         # platform altitude + block size +- error margin range.
-        if z_world < self.platform_altitude + self.block_size - error_margin:
+        if z_world < self.platform_altitude + self.block_size/2 - error_margin:
             return False
-        if z_world > self.platform_altitude + self.block_size + error_margin:
+        if z_world > self.platform_altitude + self.block_size/2 + error_margin:
             return False
         
         return True
@@ -214,7 +217,7 @@ class PickAndPlace:
         if not found_in_cache:
             current_joint_positions = self.arm.get_positions()
             solution, rollout, success, __ = self.IK_solver.inverse(
-                target_pose, current_joint_positions, method='J_trans', alpha=0.5)
+                target_pose, current_joint_positions, method='J_pseudo', alpha=0.5)
             if not success:
                 print("Failed to find a solution for the target pose.")
                 return
@@ -231,10 +234,15 @@ class PickAndPlace:
     safe position above the static platform.
     """
     def grasp_static_block(self, block_name, block_pose):
-        self.debug_print(f"Grasping block {block_name} at pose:\n {block_pose}")
+        # Convert to base frame
+        block_pose_base = self.camera_to_base(block_pose)
+        self.debug_print(f"Grasping block {block_name} at pose:\n {block_pose_base}")
+
+        # Fix z-orientation to be pointing down
+        block_pose_base[:3, 2] = np.array([0, 0, -1])
 
         # Move to the block
-        self.move_to_target(block_pose)
+        self.move_to_target(block_pose_base)
 
         # Close the gripper and apply some force
         self.arm.exec_gripper_cmd(pos = 0.049, force = 40)
