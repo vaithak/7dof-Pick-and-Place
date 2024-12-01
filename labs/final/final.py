@@ -251,16 +251,17 @@ class PickAndPlace:
                 self.debug_print(f"Found joint angles in cache for safe intermediate static pose:\n {solution}")
 
         if not found_in_cache:
-            current_joint_positions = self.arm.get_positions()
             num_trials = 3
             success = False
             for i in range(num_trials):
+                current_joint_positions = self.arm.get_positions()
                 # Use the IK solver to find a joint angle solution
                 solution, rollout, success, __ = self.IK_solver.inverse(
                     target_pose, current_joint_positions, method='J_pseudo', alpha=0.5)
                 if success:
                     break
                 self.debug_print(f"Failed to find a solution for the target pose. Retrying...")
+                self.debug_print(f"Current joint positions: {current_joint_positions}")
 
             if not success:
                 print("Failed to find a solution for the target pose.")
