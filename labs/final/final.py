@@ -136,7 +136,7 @@ class PickAndPlace:
         safe_position_ee = np.array([
                 0,
                 self.spin_table_world_y - self.world_to_base_y,
-                self.spin_table_height + self.spin_table_width + self.block_size + 0.15
+                self.spin_table_height + self.block_size + 0.15
             ])
         if team == 'red':
             self.safe_dynamic_ee_pose_base = np.array([
@@ -230,7 +230,6 @@ class PickAndPlace:
         ):
         blocks = []
         measured_times = []
-        total_count = 0
 
         retry = False
         if validity_criteria == 'dynamic':
@@ -240,6 +239,7 @@ class PickAndPlace:
 
         current_time = time_in_seconds()
         while True:
+            total_count = 0
             for (name, pose) in self.detector.get_detections():
                 curr_measurement_time = time_in_seconds()
                 total_count += 1
@@ -259,6 +259,11 @@ class PickAndPlace:
                     else:
                         self.debug_print(f"Block {name} is not a valid dynamic block.")
             
+            # Check if we have found any blocks
+            if len(blocks) > 0:
+                break
+
+            # Check if we need to retry
             if not retry:
                 break
 
@@ -338,11 +343,11 @@ class PickAndPlace:
             return False
         
         # Z-coordinate from the world frame should be within the
-        # table height + table width + block size +- error margin range.
+        # table height + block size +- error margin range.
         # TODO: Test on the real robot, it should self.block_size/2 or self.block_size.
-        if z_world < self.spin_table_height + self.spin_table_width + self.block_size/2 - error_margin:
+        if z_world < self.spin_table_height + self.block_size/2 - error_margin:
             return False
-        if z_world > self.spin_table_height + self.spin_table_width + self.block_size/2 + error_margin:
+        if z_world > self.spin_table_height + self.block_size/2 + error_margin:
             return False
 
         return True
