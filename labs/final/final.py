@@ -230,7 +230,6 @@ class PickAndPlace:
         ):
         blocks = []
         measured_times = []
-        total_count = 0
 
         retry = False
         if validity_criteria == 'dynamic':
@@ -240,6 +239,7 @@ class PickAndPlace:
 
         current_time = time_in_seconds()
         while True:
+            total_count = 0
             for (name, pose) in self.detector.get_detections():
                 curr_measurement_time = time_in_seconds()
                 total_count += 1
@@ -259,6 +259,11 @@ class PickAndPlace:
                     else:
                         self.debug_print(f"Block {name} is not a valid dynamic block.")
             
+            # Check if we have found any blocks
+            if len(blocks) > 0:
+                break
+
+            # Check if we need to retry
             if not retry:
                 break
 
