@@ -357,7 +357,15 @@ class PickAndPlace:
 
         # Move to the target pose
         self.arm.safe_move_to_position(solution)
-        self.debug_print(f"Moved to target pose:\n {target_pose}")
+
+        # Verify the arm moved to the target pose
+        self.debug_print(f"Expected moving to target pose:\n {target_pose}")
+        actual_joint_positions = self.arm.get_positions()
+        actual_ee_pose = self.FK_solver.forward(actual_joint_positions)[1]
+        self.debug_print(f"Actual joint angles after moving to target pose:\n {self.arm.get_positions()}")
+        self.debug_print(f"Actual end-effector pose after moving to target pose:\n {actual_ee_pose}")
+        self.debug_print(f"Error in joint angles after moving to target pose:\n {np.linalg.norm(solution - actual_joint_positions)}")
+        self.debug_print(f"Error in end-effector pose after moving to target pose:\n {np.linalg.norm(target_pose - actual_ee_pose)}")
 
 
     """
