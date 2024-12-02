@@ -176,6 +176,9 @@ class PickAndPlace:
             }
         }
 
+        # Assume omega of the spin table is 0.0523 rad/s - equivalent to 0.5 rpm
+        self.omega_spin_table = 0.0523
+
 
     """
     Convert from end-effector frame to robot base frame
@@ -201,6 +204,17 @@ class PickAndPlace:
     
 
     """
+    Convert coordinates from world frame to base frame
+    """
+    def coordinates_world_to_base(self, world_coords):
+        return np.array([
+            world_coords[0],
+            world_coords[1] - self.world_to_base_y,
+            world_coords[2]
+        ])
+
+
+    """
     Conditional print function for debugging.
     """
     def debug_print(self, message):
@@ -215,27 +229,49 @@ class PickAndPlace:
             validity_criteria = 'static', # static or dynamic
         ):
         blocks = []
+        measured_times = []
         total_count = 0
-        valid_count = 0
-        for (name, pose) in self.detector.get_detections():
-            total_count += 1
-            self.debug_print(f"Detected block: {name} at pose:\n {pose}")
-            if validity_criteria == 'static':
-                if self.valid_static_block(pose):
-                    blocks.append((name, pose))
-                    self.debug_print(f"Block {name} is a valid static block!")
-                else:
-                    self.debug_print(f"Block {name} is not a valid static block.")
-            elif validity_criteria == 'dynamic':
-                if self.valid_dynamic_block(pose):
-                    blocks.append((name, pose))
-                    self.debug_print(f"Block {name} is a valid dynamic block!")
-                else:
-                    self.debug_print(f"Block {name} is not a valid dynamic block.")
+
+        retry = False
+        if validity_criteria == 'dynamic':
+            # In this case, we may need to keep looking for a fixed amount of time.
+            lookup_max_time = 10.0
+            retry = True
+
+        current_time = time_in_seconds()
+        while True:
+            for (name, pose) in self.detector.get_detections():
+                curr_measurement_time = time_in_seconds()
+                total_count += 1
+                self.debug_print(f"Detected block: {name} at pose:\n {pose}")
+                if validity_criteria == 'static':
+                    if self.valid_static_block(pose):
+                        blocks.append((name, pose))
+                        measured_times.append(curr_measurement_time)
+                        self.debug_print(f"Block {name} is a valid static block!")
+                    else:
+                        self.debug_print(f"Block {name} is not a valid static block.")
+                elif validity_criteria == 'dynamic':
+                    if self.valid_dynamic_block(pose):
+                        blocks.append((name, pose))
+                        measured_times.append(curr_measurement_time)
+                        self.debug_print(f"Block {name} is a valid dynamic block!")
+                    else:
+                        self.debug_print(f"Block {name} is not a valid dynamic block.")
+            
+            if not retry:
+                break
+
+            # Check if we need to keep looking for more blocks
+            if time_in_seconds() - current_time > lookup_max_time:
+                break
+
+            # Sleep for a while before checking again
+            rospy.sleep(1.0)
 
         self.debug_print(f"Total blocks detected: {total_count}")
         self.debug_print(f"Valid blocks detected: {len(blocks)}")
-        return blocks
+        return blocks, measured_times
 
 
     """
@@ -315,7 +351,7 @@ class PickAndPlace:
     """
     Given a target pose in base frame, plan a path and execute the path to reach that pose.
     """
-    def move_to_target(self, target_pose):
+    def move_to_target(self, target_pose, time_to_reach = -1):
         found_in_cache = False
         solution = None
 
@@ -355,9 +391,17 @@ class PickAndPlace:
             
             self.debug_print(f"Joint angles found using IK solver: {solution}")
 
+        # Wait for the required time before moving to the target pose
+        if time_to_reach != -1:
+            # Consider the time to reach the target pose.
+            time_to_move_to_pose = 2 # 2 second for now
+            expected_time_to_reach = time_to_reach - time_to_move_to_pose
+            while time_in_seconds() < expected_time_to_reach:
+                pass
+        
         # Move to the target pose
         self.arm.safe_move_to_position(solution)
-
+        
         # Verify the arm moved to the target pose
         self.debug_print(f"Expected moving to target pose:\n {target_pose}")
         actual_joint_positions = self.arm.get_positions()
@@ -471,7 +515,7 @@ class PickAndPlace:
     You can assume that the current pose of the robot is on the
     safe position above the dynamic table area.
     """
-    def grasp_moving_block(self, block_name, block_pose):
+    def grasp_moving_block(self, block_name, block_pose, detected_time):
         desired_x_axis = np.array([0, -1, 0])
         if self.team == 'red':
             desired_x_axis = -desired_x_axis
@@ -479,7 +523,40 @@ class PickAndPlace:
                 self.find_desired_ee_pose(block_pose, desired_x_axis)
         self.debug_print(f"Desired end-effector pose for grasping block {block_name}:\n {desired_end_effector_pose}")
 
-        # Move to the block # TODO NECESSARY
+        # We will calculate the future desired end-effector pose when the block crosses the y-axis
+        # and then move to that pose to grasp the block.
+        desired_end_effector_future_pose = deepcopy(desired_end_effector_pose)
+
+        # Calculate the radius of the block's center from the center of the table
+        block_pose_base = self.camera_to_base(block_pose)
+        block_pose_world = self.base_to_world(block_pose_base)
+        x_world, y_world, z_world = block_pose_world[:3, 3]
+        r = np.sqrt(x_world**2 + y_world**2)
+        future_box_center_world = np.array([0, r, z_world])
+        if self.team == 'red':
+            future_box_center_world[1] *= -1
+        future_box_center_base = self.world_to_base(future_box_center_world)
+        desired_end_effector_future_pose[:3, 3] = future_box_center_base
+
+        # Calculate what chosen_x would become when the center of block crosses the y-axis
+        theta_rotation_around_z = best_angle
+        Rot_z = np.array([
+            [np.cos(theta_rotation_around_z), -np.sin(theta_rotation_around_z), 0],
+            [np.sin(theta_rotation_around_z), np.cos(theta_rotation_around_z), 0],
+            [0, 0, 1]
+        ])
+        chosen_x_future = Rot_z @ chosen_x
+        chosen_y_future = np.cross(np.array([0, 0, -1]), chosen_x_future)
+        desired_end_effector_future_pose[:3, 0] = chosen_x_future
+        desired_end_effector_future_pose[:3, 1] = chosen_y_future
+        desired_end_effector_future_pose[:3, 2] = np.array([0, 0, -1])
+        self.debug_print(f"Desired end-effector future pose for grasping block {block_name}:\n {desired_end_effector_future_pose}")
+
+        # Time after which the block will cross the y-axis, when theta_rotation_around_z is 0
+        time_to_cross = theta_rotation_around_z / self.omega_spin_table
+
+        # Move to the block with desired end-effector future pose at the time_to_cross + detected_time
+        self.move_to_target(desired_end_effector_future_pose, time_to_cross + detected_time)
 
         # Close the gripper and apply some force
         self.arm.exec_gripper_cmd(pos = 0.040, force = 50)
@@ -551,7 +628,7 @@ class PickAndPlace:
         self.move_to_target(self.safe_static_ee_pose_base)
 
         # Detect blocks
-        detected_static_blocks = self.detect_blocks(validity_criteria='static')
+        detected_static_blocks, _ = self.detect_blocks(validity_criteria='static')
 
         # Choose one block to pick
         if len(detected_static_blocks) > 0:
@@ -575,11 +652,53 @@ class PickAndPlace:
 
 
     """
-    Choose a block from the detected dynamic blocks based on #TODO NECESSARY
+    Choose a block from the detected dynamic blocks based on the angle with 
+    the world's y-axis.
+    Also, we will only consider blocks moving towards the y-axis. This means:
+    For red team, only those blocks with negative x in world frame.
+    For blue team, only those blocks with positive x in world frame.
     """
-    def dynamic_block_choosing_criteria(self, detected_dynamic_blocks):
-        # TODO NECESSARY
-        pass
+    def dynamic_block_choosing_criteria(self, detected_dynamic_blocks, detected_times):
+        # TODO: check if this is enough, also test on the real robot
+        time_margin = 2.0 + 3.0 # 2 seconds for IK_solver, 3 seconds for moving to the block
+        theta_margin = self.omega_spin_table * time_margin
+        chosen_block_name = None
+        chosen_block_pose = None
+        chosen_detected_time = None
+        min_theta = np.pi/2
+        for i, (block_name, block_pose) in enumerate(detected_dynamic_blocks):
+            block_pose_base = self.camera_to_base(block_pose)
+            block_pose_world = self.base_to_world(block_pose_base)
+            
+            # Reject blocks moving away from the y-axis
+            x_world, y_world, _ = block_pose_world[:3, 3]
+            if self.team == 'red' and x_world > 0:
+                continue
+            elif self.team == 'blue' and x_world < 0:
+                continue
+
+            # Compute the angle of two vectors:
+            # 1. The vector from the center of table to the block
+            # 2. The world y-axis for blue team and -y-axis for red team
+            block_vector = np.array([x_world, y_world])
+            world_vector = np.array([0, 1])
+            if self.team == 'red':
+                world_vector = -world_vector
+            cos_theta = np.dot(block_vector, world_vector) / np.linalg.norm(block_vector)
+            theta = np.arccos(cos_theta)
+
+            # Reject blocks with angle less than the margin
+            if theta < theta_margin:
+                continue
+
+            # Choose the block with the smallest angle
+            if theta < min_theta:
+                min_theta = theta
+                chosen_block_name = block_name
+                chosen_block_pose = block_pose
+                chosen_detected_time = detected_times[i]
+
+        return chosen_block_name, chosen_block_pose, chosen_detected_time
 
 
     """
@@ -591,15 +710,15 @@ class PickAndPlace:
         self.move_to_target(self.safe_dynamic_ee_pose_base)
 
         # Detect blocks
-        detected_dynamic_blocks = self.detect_blocks(validity_criteria='dynamic')
+        detected_dynamic_blocks, detected_times = self.detect_blocks(validity_criteria='dynamic')
 
         # Choose one block to pick
         if len(detected_dynamic_blocks) > 0:
             # Apply choosing criteria to choose the block
-            block_name, block_pose = self.dynamic_block_choosing_criteria(detected_dynamic_blocks)
+            block_name, block_pose, detected_time = self.dynamic_block_choosing_criteria(detected_dynamic_blocks, detected_times)
             self.debug_print(f"Block {block_name} is chosen for dynamic pick and place.")
 
-            if self.grasp_moving_block(block_name, block_pose):
+            if self.grasp_moving_block(block_name, block_pose, detected_time):
                 # Move to the safe position above the dynamic table area
                 self.move_to_target(self.safe_dynamic_ee_pose_base)
 
@@ -619,8 +738,9 @@ class PickAndPlace:
     """
     def pick_and_place(self):
         order_of_operations = [
-            'static', 'static', 
-            'static', 'static',
+            'dynamic',
+            # 'static', 'static', 
+            # 'static', 'static',
         ]
 
         for i, operation in enumerate(order_of_operations):
