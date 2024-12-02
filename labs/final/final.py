@@ -136,7 +136,7 @@ class PickAndPlace:
         safe_position_ee = np.array([
                 0,
                 self.spin_table_world_y - self.world_to_base_y,
-                self.spin_table_height + self.spin_table_width + self.block_size + 0.15
+                self.spin_table_height + self.block_size + 0.15
             ])
         if team == 'red':
             self.safe_dynamic_ee_pose_base = np.array([
@@ -338,11 +338,11 @@ class PickAndPlace:
             return False
         
         # Z-coordinate from the world frame should be within the
-        # table height + table width + block size +- error margin range.
+        # table height + block size +- error margin range.
         # TODO: Test on the real robot, it should self.block_size/2 or self.block_size.
-        if z_world < self.spin_table_height + self.spin_table_width + self.block_size/2 - error_margin:
+        if z_world < self.spin_table_height + self.block_size/2 - error_margin:
             return False
-        if z_world > self.spin_table_height + self.spin_table_width + self.block_size/2 + error_margin:
+        if z_world > self.spin_table_height + self.block_size/2 + error_margin:
             return False
 
         return True
