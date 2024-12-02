@@ -126,6 +126,34 @@ class PickAndPlace:
             [0, 0, 0, 1]
         ])
 
+        # Define a safe pose for the end-effector above the dynamic table area.
+        self.spin_table_radius = 0.3048 # from the center of the table
+        self.spin_table_world_y = self.spin_table_radius
+        if team == 'red':
+            self.spin_table_world_y *= -1
+        self.spin_table_height = 0.2
+        self.spin_table_width = 0.02
+        safe_position_ee = np.array([
+                0,
+                self.spin_table_world_y - self.world_to_base_y,
+                self.platform_altitude + self.spin_table_height + self.spin_table_width + self.block_size + 0.15
+            ])
+        if team == 'red':
+            self.safe_dynamic_ee_pose_base = np.array([
+                [0, 1, 0, safe_position_ee[0]],
+                [1, 0, 0, safe_position_ee[1]],
+                [0, 0, -1, safe_position_ee[2]],
+                [0, 0, 0, 1]
+            ])
+        else:
+            self.safe_dynamic_ee_pose_base = np.array([
+                [0, -1, 0, safe_position_ee[0]],
+                [-1, 0, 0, safe_position_ee[1]],
+                [0, 0, -1, safe_position_ee[2]],
+                [0, 0, 0, 1]
+            ])
+        self.debug_print(f"Safe dynamic block pose in base frame:\n {self.safe_dynamic_ee_pose_base}")
+
         # Mode to define whether we are aiming for the static block 
         # or the moving block.
         self.mode = 'static'
@@ -138,11 +166,13 @@ class PickAndPlace:
                 'safe_static_ee_pose_base': np.array([-0.178, -0.113, -0.141, -1.885, -0.016, 1.773, 0.472]),
                 'safe_tower_ee_pose_base': np.array([ 0.048, -0.306,  0.279, -2.073,  0.085, 1.777, 1.082]),
                 'safe_intermediate_static_ee_pose_base': np.array([-0.13878, 0.08043, -0.15924, -1.78304, 0.01332, 1.86244, 0.48407]),
+                'safe_dynamic_ee_pose_base': np.array([1.326, 0.505, 0.383, -1.026, -0.182, 1.501, 0.867])
             },
             'blue': {
                 'safe_static_ee_pose_base': np.array([0.107, -0.115, 0.207, -1.885, 0.024, 1.772, 1.093]),
                 'safe_tower_ee_pose_base': np.array([-0.230, -0.295, -0.121, -2.073, -0.0360, 1.780, 0.447]),
                 'safe_intermediate_static_ee_pose_base': np.array([0.18416, 0.07999, 0.11214, -1.78303, -0.00938, 1.86251, 1.084]),
+                'safe_dynamic_ee_pose_base': np.array([-1.160, 0.491, -0.580, -1.226, 0.262, 1.645, 0.651])
             }
         }
 
@@ -178,16 +208,34 @@ class PickAndPlace:
 
 
     """
-    Detect static blocks on the platform. No velocity information is needed.
+    Detect blocks on the platform.
     """
-    def detect_static_blocks(self):
-        static_blocks = []
+    def detect_blocks(
+            self,
+            validity_criteria = 'static', # static or dynamic
+        ):
+        blocks = []
+        total_count = 0
+        valid_count = 0
         for (name, pose) in self.detector.get_detections():
+            total_count += 1
             self.debug_print(f"Detected block: {name} at pose:\n {pose}")
-            if self.valid_static_block(pose):
-                static_blocks.append((name, pose))
-                self.debug_print(f"Block {name} is a valid static block!")
-        return static_blocks
+            if validity_criteria == 'static':
+                if self.valid_static_block(pose):
+                    blocks.append((name, pose))
+                    self.debug_print(f"Block {name} is a valid static block!")
+                else:
+                    self.debug_print(f"Block {name} is not a valid static block.")
+            elif validity_criteria == 'dynamic':
+                if self.valid_dynamic_block(pose):
+                    blocks.append((name, pose))
+                    self.debug_print(f"Block {name} is a valid dynamic block!")
+                else:
+                    self.debug_print(f"Block {name} is not a valid dynamic block.")
+
+        self.debug_print(f"Total blocks detected: {total_count}")
+        self.debug_print(f"Valid blocks detected: {len(blocks)}")
+        return blocks
 
 
     """
@@ -207,7 +255,7 @@ class PickAndPlace:
         self.debug_print(f"Block pose in world frame:\n {block_pose_world}")
 
         # Extract the x, y, z coordinates from the pose - these are the coordinates
-        # of the block center in the base frame.
+        # of the block center in the world frame.
         x_world, y_world, z_world = block_pose_world[:3, 3]
 
         # Check if the block is within the platform
@@ -223,6 +271,44 @@ class PickAndPlace:
         if z_world > self.platform_altitude + self.block_size/2 + error_margin:
             return False
         
+        return True
+    
+
+    """
+    Given a detected block pose in camera frame, check if the pose matches
+    the expected pose of a dynamic block. This is useful for filtering out
+    false positives.
+    """
+    def valid_dynamic_block(self, detected_block_pose):
+        # Error margin - TODO: Test on the real robot
+        error_margin = 0.01
+
+        # Convert to base frame
+        block_pose_base = self.camera_to_base(detected_block_pose)
+        block_pose_world = self.base_to_world(block_pose_base)
+
+        # Print the block pose in the world frame
+        self.debug_print(f"Block pose in world frame:\n {block_pose_world}")
+
+        # Extract the x, y, z coordinates from the pose - these are the coordinates
+        # of the block center in the world frame.
+        x_world, y_world, z_world = block_pose_world[:3, 3]
+
+        # Check if the block is within the dynamic table area, the table's center is
+        # at the origin of the world frame.
+        if abs(x_world) > self.spin_table_radius + error_margin:
+            return False
+        if abs(y_world) > self.spin_table_radius + error_margin:
+            return False
+        
+        # Z-coordinate from the world frame should be within the
+        # table height + table width + block size +- error margin range.
+        # TODO: Test on the real robot, it should self.block_size/2 or self.block_size.
+        if z_world < self.spin_table_height + self.spin_table_width + self.block_size/2 - error_margin:
+            return False
+        if z_world > self.spin_table_height + self.spin_table_width + self.block_size/2 + error_margin:
+            return False
+
         return True
 
 
@@ -292,18 +378,25 @@ class PickAndPlace:
 
 
     """
-    Given a static block pose, grasp the block.
-    You can assume that the current pose of the robot is on the
-    safe position above the static platform.
+    Find desired end effector pose, given the block pose in camera frame to pick it up.
+    The crux is that end-effector should always lift it facing down. Whereas, the block's
+    orientation is arbitrary (still orthogonal to the camera frame), but x, y and z can be swapped
+    in any order. So, we need to find the correct x, y and z for the end-effector.
+
+    One of the axis is aligned with z or -z, this can be found by checking the max value of 
+    3rd row of the pose matrix. The rest two axis should be choosen as x and y for the 
+    end-effector frame. This will be useful for the grasp pose.
+
+    Choose x as the one with one of the smallest angle with provided desired x-axis (in base frame).
     """
-    def grasp_static_block(self, block_name, block_pose):
-        # Convert to base frame
+    def find_desired_ee_pose(self, block_pose, desired_x_axis):
         block_pose_base = self.camera_to_base(block_pose)
 
         desired_end_effector_pose = deepcopy(block_pose_base)
         chosen_z = np.array([0, 0, -1])
         desired_end_effector_pose[:3, 2] = chosen_z
-        self.debug_print(f"Grasping block {block_name} at pose:\n {block_pose_base}")
+        self.debug_print(f"Block pose in base frame:\n {block_pose_base}")
+
         # One of the axis is aligned with z or -z, this can be found
         # by checking the max value of 3rd row of the pose matrix.
         # The rest two axis should be choosen as x and y for the end-effector
@@ -316,7 +409,7 @@ class PickAndPlace:
             if i != axis:
                 curr_x = block_pose_base[:3, i]
                 # measure angle between curr_x and [1, 0, 0], assume norm is 1
-                curr_angle = np.arccos(np.dot(curr_x, [1, 0, 0]))
+                curr_angle = np.arccos(np.dot(curr_x, desired_x_axis))
                 neg_angle = np.pi - curr_angle
                 # Choose the one with the smallest angle out of curr_x and -curr_x
                 if neg_angle < curr_angle:
@@ -329,6 +422,17 @@ class PickAndPlace:
         chosen_y = np.cross(chosen_z, chosen_x)
         desired_end_effector_pose[:3, 0] = chosen_x
         desired_end_effector_pose[:3, 1] = chosen_y
+        return desired_end_effector_pose, chosen_x, best_angle
+
+
+    """
+    Given a static block pose, grasp the block.
+    You can assume that the current pose of the robot is on the
+    safe position above the static platform.
+    """
+    def grasp_static_block(self, block_name, block_pose):
+        desired_end_effector_pose, chosen_x, best_angle = \
+                self.find_desired_ee_pose(block_pose, np.array([1, 0, 0]))
         self.debug_print(f"Desired end-effector pose for grasping block {block_name}:\n {desired_end_effector_pose}")
 
         # Move to the intermediate pose above the block
@@ -339,6 +443,35 @@ class PickAndPlace:
 
         # Move to the block
         self.move_to_target(desired_end_effector_pose)
+
+        # Close the gripper and apply some force
+        self.arm.exec_gripper_cmd(pos = 0.040, force = 50)
+
+        # Verify the block is grasped
+        gripper_state = self.arm.get_gripper_state()
+        # TODO: Add this on the real robot, simulation is not accurate
+        # if gripper_state['force'][0] < 20:
+            # print(f"Failed to grasp block {block_name}.")
+            # return False
+        
+        self.debug_print(f"Grasped block {block_name}.")
+        return True
+    
+
+    """
+    Given a moving block pose, grasp the block.
+    You can assume that the current pose of the robot is on the
+    safe position above the dynamic table area.
+    """
+    def grasp_moving_block(self, block_name, block_pose):
+        desired_x_axis = np.array([0, -1, 0])
+        if self.team == 'red':
+            desired_x_axis = -desired_x_axis
+        desired_end_effector_pose, chosen_x, best_angle = \
+                self.find_desired_ee_pose(block_pose, desired_x_axis)
+        self.debug_print(f"Desired end-effector pose for grasping block {block_name}:\n {desired_end_effector_pose}")
+
+        # Move to the block # TODO NECESSARY
 
         # Close the gripper and apply some force
         self.arm.exec_gripper_cmd(pos = 0.040, force = 50)
@@ -398,51 +531,103 @@ class PickAndPlace:
 
         # Move back to the safe position above the tower-building area
         self.move_to_target(self.safe_tower_ee_pose_base)
+        return True
+
+
+    """
+    Control loop for static pick and place task.
+    Assume that you are starting from the start position and the gripper is open.
+    """
+    def static_pick_and_place(self):
+        # Move to the safe position above the static platform
+        self.move_to_target(self.safe_static_ee_pose_base)
+
+        # Detect blocks
+        detected_static_blocks = self.detect_blocks(validity_criteria='static')
+
+        # Choose one block to pick
+        if len(detected_static_blocks) > 0:
+            # Choose any one block
+            block_name, block_pose = detected_static_blocks[0]
+            self.debug_print(f"Block {block_name} is chosen for static pick and place.")
+
+            if self.grasp_static_block(block_name, block_pose):
+                # Move to the safe position above the static platform
+                self.move_to_target(self.safe_static_ee_pose_base)
+
+                # Move to the safe position above the tower-building area
+                self.move_to_target(self.safe_tower_ee_pose_base)
+
+                # Place the block
+                if self.place_block(block_name):
+                    self.placed_static_blocks += 1
+                    self.debug_print(f"Placed {self.placed_static_blocks} static blocks.")
+        else:
+            print("No valid static blocks detected.")
+
+
+    """
+    Choose a block from the detected dynamic blocks based on #TODO NECESSARY
+    """
+    def dynamic_block_choosing_criteria(self, detected_dynamic_blocks):
+        # TODO NECESSARY
+        pass
+
+
+    """
+    Control loop for dynamic pick and place task.
+    Assume that you are starting from the start position and the gripper is open
+    """
+    def dynamic_pick_and_place(self):
+        # Move to the safe position above the dynamic table area
+        self.move_to_target(self.safe_dynamic_ee_pose_base)
+
+        # Detect blocks
+        detected_dynamic_blocks = self.detect_blocks(validity_criteria='dynamic')
+
+        # Choose one block to pick
+        if len(detected_dynamic_blocks) > 0:
+            # Apply choosing criteria to choose the block
+            block_name, block_pose = self.dynamic_block_choosing_criteria(detected_dynamic_blocks)
+            self.debug_print(f"Block {block_name} is chosen for dynamic pick and place.")
+
+            if self.grasp_moving_block(block_name, block_pose):
+                # Move to the safe position above the dynamic table area
+                self.move_to_target(self.safe_dynamic_ee_pose_base)
+
+                # Move to the safe position above the tower-building area
+                self.move_to_target(self.safe_tower_ee_pose_base)
+
+                # Place the block
+                if self.place_block(block_name):
+                    self.placed_moving_blocks += 1
+                    self.debug_print(f"Placed {self.placed_moving_blocks} moving blocks.")
+        else:
+            print("No valid dynamic blocks detected.")
 
 
     """
     The main control loop for the pick and place task.
     """
     def pick_and_place(self):
-        num_iterations = 4
+        order_of_operations = [
+            'static', 'static', 
+            'static', 'static',
+        ]
 
-        while num_iterations > 0:
-            num_iterations -= 1
+        for i, operation in enumerate(order_of_operations):
+            self.mode = operation
+            self.debug_print(f"Attempting operation {i+1} in mode: {operation}.")
 
             # Always first move to the start position after opening the gripper
             self.arm.open_gripper()
             self.arm.safe_move_to_position(self.start_position)
 
             # Check the mode
-            if self.mode == 'static' and self.placed_static_blocks < 4:
-                # Move to the safe position above the static platform
-                self.move_to_target(self.safe_static_ee_pose_base)
-
-                # Detect blocks
-                detected_static_blocks = self.detect_static_blocks()
-
-                # Choose one block to pick
-                if len(detected_static_blocks) > 0:
-                    # Choose any one block
-                    block_name, block_pose = detected_static_blocks[0]
-                    self.debug_print(f"Block {block_name} is chosen for pick and place.")
-
-                    if self.grasp_static_block(block_name, block_pose):
-                        # Move to the safe position above the static platform
-                        self.move_to_target(self.safe_static_ee_pose_base)
-
-                        # Move to the safe position above the tower-building area
-                        self.move_to_target(self.safe_tower_ee_pose_base)
-
-                        # Place the block
-                        self.place_block(block_name)
-
-                        # Update the count of placed static blocks
-                        self.placed_static_blocks += 1
-                        self.debug_print(f"Placed {self.placed_static_blocks} static blocks.")
-                else:
-                    print("No valid static blocks detected.")
-                    
+            if self.mode == 'static':
+                self.static_pick_and_place()
+            elif self.mode == 'dynamic':
+                self.dynamic_pick_and_place()
 
 
 if __name__ == "__main__":
