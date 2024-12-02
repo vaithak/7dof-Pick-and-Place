@@ -136,7 +136,7 @@ class PickAndPlace:
         safe_position_ee = np.array([
                 0,
                 self.spin_table_world_y - self.world_to_base_y,
-                self.platform_altitude + self.spin_table_height + self.spin_table_width + self.block_size + 0.15
+                self.spin_table_height + self.spin_table_width + self.block_size + 0.15
             ])
         if team == 'red':
             self.safe_dynamic_ee_pose_base = np.array([
@@ -371,6 +371,11 @@ class PickAndPlace:
                 solution = self.cached_joint_angles[self.team]['safe_intermediate_static_ee_pose_base']
                 found_in_cache = True
                 self.debug_print(f"Found joint angles in cache for safe intermediate static pose:\n {solution}")
+        elif np.allclose(target_pose, self.safe_dynamic_ee_pose_base):
+            if 'safe_dynamic_ee_pose_base' in self.cached_joint_angles[self.team]:
+                solution = self.cached_joint_angles[self.team]['safe_dynamic_ee_pose_base']
+                found_in_cache = True
+                self.debug_print(f"Found joint angles in cache for safe dynamic pose:\n {solution}")
 
         if not found_in_cache:
             num_trials = 3
