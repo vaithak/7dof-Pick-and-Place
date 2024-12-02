@@ -253,7 +253,11 @@ class PickAndPlace:
                         self.debug_print(f"Block {name} is not a valid static block.")
                 elif validity_criteria == 'dynamic':
                     if self.valid_dynamic_block(pose):
-                        blocks.append((name, pose))
+                        detectable, theta = self.dynamic_block_pickable(pose)
+                        if not detectable:
+                            self.debug_print(f"Block {name} is not pickable according to dynamic block criteria.")
+                            continue
+                        blocks.append((name, pose, theta))
                         measured_times.append(curr_measurement_time)
                         self.debug_print(f"Block {name} is a valid dynamic block!")
                     else:
@@ -261,6 +265,11 @@ class PickAndPlace:
             
             # Check if we have found any blocks
             if len(blocks) > 0:
+                if validity_criteria == 'dynamic':
+                    # Sort the blocks based on the angle theta
+                    blocks = sorted(blocks, key=lambda x: x[2])
+                    # remove the theta from the blocks before returning
+                    blocks = [(name, pose) for name, pose, _ in blocks]
                 break
 
             # Check if we need to retry
@@ -662,53 +671,39 @@ class PickAndPlace:
 
 
     """
-    Choose a block from the detected dynamic blocks based on the angle with 
-    the world's y-axis.
-    Also, we will only consider blocks moving towards the y-axis. This means:
-    For red team, only those blocks with negative x in world frame.
-    For blue team, only those blocks with positive x in world frame.
+    Check if the block pose (in camera frame) is pickable according to the
+    dynamic block choosing criteria.
     """
-    def dynamic_block_choosing_criteria(self, detected_dynamic_blocks, detected_times):
+    def dynamic_block_pickable(self, block_pose):
         # TODO: check if this is enough, also test on the real robot
         time_margin = 2.0 + 3.0 # 2 seconds for IK_solver, 3 seconds for moving to the block
         theta_margin = self.omega_spin_table * time_margin
-        chosen_block_name = None
-        chosen_block_pose = None
-        chosen_detected_time = None
-        min_theta = np.pi/2
-        for i, (block_name, block_pose) in enumerate(detected_dynamic_blocks):
-            block_pose_base = self.camera_to_base(block_pose)
-            block_pose_world = self.base_to_world(block_pose_base)
-            
-            # Reject blocks moving away from the y-axis
-            x_world, y_world, _ = block_pose_world[:3, 3]
-            if self.team == 'red' and x_world > 0:
-                continue
-            elif self.team == 'blue' and x_world < 0:
-                continue
 
-            # Compute the angle of two vectors:
-            # 1. The vector from the center of table to the block
-            # 2. The world y-axis for blue team and -y-axis for red team
-            block_vector = np.array([x_world, y_world])
-            world_vector = np.array([0, 1])
-            if self.team == 'red':
-                world_vector = -world_vector
-            cos_theta = np.dot(block_vector, world_vector) / np.linalg.norm(block_vector)
-            theta = np.arccos(cos_theta)
+        block_pose_base = self.camera_to_base(block_pose)
+        block_pose_world = self.base_to_world(block_pose_base)
+        
+        # Reject blocks moving away from the y-axis
+        x_world, y_world, _ = block_pose_world[:3, 3]
+        if self.team == 'red' and x_world > 0:
+            return False, None
+        elif self.team == 'blue' and x_world < 0:
+            return False, None
 
-            # Reject blocks with angle less than the margin
-            if theta < theta_margin:
-                continue
+        # Compute the angle of two vectors:
+        # 1. The vector from the center of table to the block
+        # 2. The world y-axis for blue team and -y-axis for red team
+        block_vector = np.array([x_world, y_world])
+        world_vector = np.array([0, 1])
+        if self.team == 'red':
+            world_vector = -world_vector
+        cos_theta = np.dot(block_vector, world_vector) / np.linalg.norm(block_vector)
+        theta = np.arccos(cos_theta)
 
-            # Choose the block with the smallest angle
-            if theta < min_theta:
-                min_theta = theta
-                chosen_block_name = block_name
-                chosen_block_pose = block_pose
-                chosen_detected_time = detected_times[i]
+        # Reject blocks with angle less than the margin
+        if theta < theta_margin:
+            return False, None
 
-        return chosen_block_name, chosen_block_pose, chosen_detected_time
+        return True, theta
 
 
     """
@@ -724,8 +719,8 @@ class PickAndPlace:
 
         # Choose one block to pick
         if len(detected_dynamic_blocks) > 0:
-            # Apply choosing criteria to choose the block
-            block_name, block_pose, detected_time = self.dynamic_block_choosing_criteria(detected_dynamic_blocks, detected_times)
+            block_name, block_pose = detected_dynamic_blocks[0]
+            detected_time = detected_times[0]
             self.debug_print(f"Block {block_name} is chosen for dynamic pick and place.")
 
             if self.grasp_moving_block(block_name, block_pose, detected_time):
