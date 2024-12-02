@@ -554,7 +554,7 @@ class PickAndPlace:
         future_box_center_world = np.array([0, r, z_world])
         if self.team == 'red':
             future_box_center_world[1] *= -1
-        future_box_center_base = self.world_to_base(future_box_center_world)
+        future_box_center_base = self.coordinates_world_to_base(future_box_center_world)
         desired_end_effector_future_pose[:3, 3] = future_box_center_base
 
         # Calculate what chosen_x would become when the center of block crosses the y-axis
@@ -744,8 +744,8 @@ class PickAndPlace:
     def pick_and_place(self):
         order_of_operations = [
             'dynamic',
-            # 'static', 'static', 
-            # 'static', 'static',
+            'static', 'static', 
+            'static', 'static',
         ]
 
         for i, operation in enumerate(order_of_operations):
@@ -775,7 +775,7 @@ if __name__ == "__main__":
     arm = ArmController()
     detector = ObjectDetector()
 
-    start_position = start_position = np.array([0, 0, 0, -pi/2, 0, pi/2, pi/4])
+    start_position = np.array([0, 0, 0, -pi/2, 0, pi/2, pi/4])
     arm.safe_move_to_position(start_position) # on your mark!
 
     print("\n****************")
