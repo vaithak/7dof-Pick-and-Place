@@ -155,9 +155,8 @@ class PickAndPlace:
             ])
         self.debug_print(f"Safe dynamic block pose in base frame:\n {self.safe_dynamic_ee_pose_base}")
 
-        # Mode to define whether we are aiming for the static block 
-        # or the moving block.
-        self.mode = 'static'
+        # Mode to define whether we are running in simulation or real robot
+        self.mode = 'simulation'
         self.placed_static_blocks = 0
         self.placed_moving_blocks = 0
 
@@ -316,11 +315,12 @@ class PickAndPlace:
             return False
         # Z-coordinate from the world frame should be within the 
         # platform altitude + block size +- error margin range.
-        # TODO: Test on the real robot, it should self.block_size/2 or self.block_size.
-        if z_world < self.platform_altitude + self.block_size/2 - error_margin:
-            return False
-        if z_world > self.platform_altitude + self.block_size/2 + error_margin:
-            return False
+        if self.mode == 'simulation':
+            if z_world < self.platform_altitude + self.block_size/2 - error_margin:
+                return False
+        else:
+            if z_world < self.platform_altitude + self.block_size - error_margin:
+                return False
         
         return True
     
@@ -754,7 +754,6 @@ class PickAndPlace:
         ]
 
         for i, operation in enumerate(order_of_operations):
-            self.mode = operation
             self.debug_print(f"Attempting operation {i+1} in mode: {operation}.")
 
             # Always first move to the start position after opening the gripper
@@ -762,9 +761,9 @@ class PickAndPlace:
             self.arm.safe_move_to_position(self.start_position)
 
             # Check the mode
-            if self.mode == 'static':
+            if operation == 'static':
                 self.static_pick_and_place()
-            elif self.mode == 'dynamic':
+            elif operation == 'dynamic':
                 self.dynamic_pick_and_place()
 
 
