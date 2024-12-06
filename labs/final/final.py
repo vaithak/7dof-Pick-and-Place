@@ -515,7 +515,7 @@ class PickAndPlace:
     def grasp_static_block(self, block_name, block_pose):
         desired_end_effector_pose, chosen_x, best_angle = \
                 self.find_desired_ee_pose(block_pose, np.array([1, 0, 0]))
-        desired_end_effector_pose[2, 3] = self.block_size/2 + 0.005 # Fix the z-coordinate to pick the block
+        desired_end_effector_pose[2, 3] = self.block_size/2 + 0.01 # Fix the z-coordinate to pick the block
         self.debug_print(f"Desired end-effector pose for grasping block {block_name}:\n {desired_end_effector_pose}")
 
         # Move to the intermediate pose above the block
@@ -532,10 +532,10 @@ class PickAndPlace:
 
         # Verify the block is grasped
         gripper_state = self.arm.get_gripper_state()
-        # TODO: Add this on the real robot, simulation is not accurate
-        # if gripper_state['force'][0] < 20:
-            # print(f"Failed to grasp block {block_name}.")
-            # return False
+        if self.mode == 'real':
+            if gripper_state['force'][0] < 20:
+                print(f"Failed to grasp block {block_name}.")
+                return False
         
         self.debug_print(f"Grasped block {block_name}.")
         return True
@@ -595,9 +595,10 @@ class PickAndPlace:
         # Verify the block is grasped
         gripper_state = self.arm.get_gripper_state()
         # TODO: Add this on the real robot, simulation is not accurate
-        # if gripper_state['force'][0] < 20:
-            # print(f"Failed to grasp block {block_name}.")
-            # return False
+        if self.mode == 'real':
+            if gripper_state['force'][0] < 20:
+                print(f"Failed to grasp block {block_name}.")
+                return False
         
         self.debug_print(f"Grasped block {block_name}.")
         return True
@@ -688,7 +689,7 @@ class PickAndPlace:
     """
     def dynamic_block_pickable(self, block_pose):
         # TODO: check if this is enough, also test on the real robot
-        time_margin = 2.0 + 3.0 # 2 seconds for IK_solver, 3 seconds for moving to the block
+        time_margin = 7.0 + 1.0 # 2 seconds for IK_solver, 3 seconds for moving to the block
         theta_margin = self.omega_spin_table * time_margin
 
         block_pose_base = self.camera_to_base(block_pose)
@@ -760,18 +761,22 @@ class PickAndPlace:
             'static', 'static',
         ]
 
+        # Always first move to the start position after opening the gripper
+        self.arm.open_gripper()
+        self.arm.safe_move_to_position(self.start_position)
+
         for i, operation in enumerate(order_of_operations):
             self.debug_print(f"Attempting operation {i+1} in mode: {operation}.")
-
-            # Always first move to the start position after opening the gripper
-            self.arm.open_gripper()
-            self.arm.safe_move_to_position(self.start_position)
 
             # Check the mode
             if operation == 'static':
                 self.static_pick_and_place()
             elif operation == 'dynamic':
                 self.dynamic_pick_and_place()
+
+            # Always in the end move to the start position after opening the gripper
+            self.arm.open_gripper()
+            self.arm.safe_move_to_position(self.start_position)
 
 
 if __name__ == "__main__":
