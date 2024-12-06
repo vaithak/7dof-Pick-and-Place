@@ -359,10 +359,12 @@ class PickAndPlace:
         # Z-coordinate from the world frame should be within the
         # table height + block size +- error margin range.
         # TODO: Test on the real robot, it should self.block_size/2 or self.block_size.
-        if z_world < self.spin_table_height + self.block_size/2 - error_margin:
-            return False
-        if z_world > self.spin_table_height + self.block_size/2 + error_margin:
-            return False
+        if self.mode == 'simulation':
+            if z_world < self.spin_table_height + self.block_size/2 - error_margin:
+                return False
+        else:
+            if z_world < self.spin_table_height + self.block_size - error_margin:
+                return False
 
         return True
 
