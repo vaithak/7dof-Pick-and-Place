@@ -99,7 +99,7 @@ class PickAndPlace:
 
         # Define a safe pose for the end-effector above the tower-building area.
         safe_position_ee = np.array([
-                safe_position_ee[0] - self.platform_size/4, # more back to ensure no collision
+                self.platform_center_x - self.platform_size/2, # more back to ensure no collision
                 -safe_position_ee[1],
                 safe_position_ee[2]
             ])
@@ -115,7 +115,7 @@ class PickAndPlace:
         # This will be useful to first move the arm to this pose before moving to the
         # grasping pose - better for convergence of the IK solver.
         safe_position_ee = np.array([
-                safe_position_ee[0],
+                self.platform_center_x,
                 self.safe_static_ee_pose_base[1, 3],
                 self.platform_altitude + self.block_size + 0.15
             ])
@@ -125,6 +125,7 @@ class PickAndPlace:
             [0, 0, -1, safe_position_ee[2]],
             [0, 0, 0, 1]
         ])
+        self.debug_print(f"Safe intermediate static block pose in base frame:\n {self.safe_intermediate_static_ee_pose_base}")
 
         # Define a safe pose for the end-effector above the dynamic table area.
         self.spin_table_radius = 0.3048 # from the center of the table
@@ -165,13 +166,13 @@ class PickAndPlace:
             'red': {
                 'safe_static_ee_pose_base': np.array([-0.178, -0.113, -0.141, -1.885, -0.016, 1.773, 0.472]),
                 'safe_tower_ee_pose_base': np.array([ 0.048, -0.306,  0.279, -2.073,  0.085, 1.777, 1.082]),
-                'safe_intermediate_static_ee_pose_base': np.array([-0.13878, 0.08043, -0.15924, -1.78304, 0.01332, 1.86244, 0.48407]),
+                'safe_intermediate_static_ee_pose_base': np.array([-0.13875,  0.08052, -0.15922, -1.78293,  0.01325,  1.86239,  0.48415]),
                 'safe_dynamic_ee_pose_base': np.array([1.326, 0.505, 0.383, -1.026, -0.182, 1.501, 0.867])
             },
             'blue': {
                 'safe_static_ee_pose_base': np.array([0.107, -0.115, 0.207, -1.885, 0.024, 1.772, 1.093]),
                 'safe_tower_ee_pose_base': np.array([-0.230, -0.295, -0.121, -2.073, -0.0360, 1.780, 0.447]),
-                'safe_intermediate_static_ee_pose_base': np.array([0.18416, 0.07999, 0.11214, -1.78303, -0.00938, 1.86251, 1.084]),
+                'safe_intermediate_static_ee_pose_base': np.array([0.18411,  0.08003,  0.11209, -1.78294, -0.00929,  1.86243,  1.08388]),
                 'safe_dynamic_ee_pose_base': np.array([-1.160, 0.491, -0.580, -1.226, 0.262, 1.645, 0.651])
             }
         }
