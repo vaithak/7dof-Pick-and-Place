@@ -116,7 +116,7 @@ class PickAndPlace:
         # grasping pose - better for convergence of the IK solver.
         safe_position_ee = np.array([
                 safe_position_ee[0],
-                safe_position_ee[1],
+                self.safe_static_ee_pose_base[1, 3],
                 self.platform_altitude + self.block_size + 0.15
             ])
         self.safe_intermediate_static_ee_pose_base = np.array([
@@ -479,6 +479,10 @@ class PickAndPlace:
         for i in range(3):
             if i != axis:
                 curr_x = block_pose_base[:3, i]
+                # Set the z-component to 0
+                curr_x[2] = 0
+                # Normalize the current x-axis
+                curr_x /= np.linalg.norm(curr_x)
                 # measure angle between curr_x and [1, 0, 0], assume norm is 1
                 curr_angle = np.arccos(np.dot(curr_x, desired_x_axis))
                 neg_angle = np.pi - curr_angle
