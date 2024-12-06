@@ -179,6 +179,10 @@ class PickAndPlace:
         # Assume omega of the spin table is 0.0523 rad/s - equivalent to 0.5 rpm
         self.omega_spin_table = 0.0523
 
+        # Offsets for x and y coordinates in camera frame
+        self.camera_x = 0.0
+        self.camera_y = 0.0
+
 
     """
     Convert from end-effector frame to robot base frame
@@ -509,6 +513,7 @@ class PickAndPlace:
     def grasp_static_block(self, block_name, block_pose):
         desired_end_effector_pose, chosen_x, best_angle = \
                 self.find_desired_ee_pose(block_pose, np.array([1, 0, 0]))
+        desired_end_effector_pose[2, 3] = self.block_size/2 + 0.005 # Fix the z-coordinate to pick the block
         self.debug_print(f"Desired end-effector pose for grasping block {block_name}:\n {desired_end_effector_pose}")
 
         # Move to the intermediate pose above the block
