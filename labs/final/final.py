@@ -183,6 +183,9 @@ class PickAndPlace:
         self.camera_x = 0.0
         self.camera_y = 0.0
 
+        # Assumption about time taken to move to desired joint angles
+        self.time_move_to_target = 1.0
+
 
     """
     Convert from end-effector frame to robot base frame
@@ -403,9 +406,12 @@ class PickAndPlace:
             success = False
             for i in range(num_trials):
                 current_joint_positions = self.arm.get_positions()
+                curr_time = time_in_seconds()
                 # Use the IK solver to find a joint angle solution
                 solution, rollout, success, __ = self.IK_solver.inverse(
                     target_pose, current_joint_positions, method='J_pseudo', alpha=0.5)
+                time_elapsed = time_in_seconds() - curr_time
+                print("time elapsed in IK: ", time_elapsed)
                 if success:
                     break
                 self.debug_print(f"Failed to find a solution for the target pose. Retrying...")
@@ -416,14 +422,14 @@ class PickAndPlace:
                 return
             
             self.debug_print(f"Joint angles found using IK solver: {solution}")
-
+        
         # Wait for the required time before moving to the target pose
         if time_to_reach != -1:
             # Consider the time to reach the target pose.
-            time_to_move_to_pose = 2 # 2 second for now
+            time_to_move_to_pose = self.time_move_to_target # 2 second for now
             expected_time_to_reach = time_to_reach - time_to_move_to_pose
             while time_in_seconds() < expected_time_to_reach:
-                pass
+                rospy.sleep(0.1)
         
         # Move to the target pose
         self.arm.safe_move_to_position(solution)
@@ -542,6 +548,16 @@ class PickAndPlace:
     
 
     """
+    Calculate omega using name and given block pose at 
+    given detected time. Detect block pose again
+    at given time. Then compute elapsed time according to
+    theta difference.
+    """
+    def estimate_omega(self, block_name, block_pose, detect_time):
+        return self.omega_spin_table
+    
+
+    """
     Given a moving block pose, grasp the block.
     You can assume that the current pose of the robot is on the
     safe position above the dynamic table area.
@@ -552,6 +568,11 @@ class PickAndPlace:
             desired_x_axis = -desired_x_axis
         desired_end_effector_pose, chosen_x, best_angle = \
                 self.find_desired_ee_pose(block_pose, desired_x_axis)
+        
+        # Hack
+        # desired_end_effector_pose[:3, 0] = np.array([1, 0, 0])
+        # desired_end_effector_pose[:3, 1] = np.array([0, -1, 0])
+        # desired_end_effector_pose[:3, 2] = np.array([0., 0., -1])
         self.debug_print(f"Desired end-effector pose for grasping block {block_name}:\n {desired_end_effector_pose}")
 
         # We will calculate the future desired end-effector pose when the block crosses the y-axis
@@ -584,6 +605,7 @@ class PickAndPlace:
         self.debug_print(f"Desired end-effector future pose for grasping block {block_name}:\n {desired_end_effector_future_pose}")
 
         # Time after which the block will cross the y-axis, when theta_rotation_around_z is 0
+        omega = self.estimate_omega(block_name, block_pose, detected_time)
         time_to_cross = theta_rotation_around_z / self.omega_spin_table
 
         # Move to the block with desired end-effector future pose at the time_to_cross + detected_time
@@ -689,7 +711,7 @@ class PickAndPlace:
     """
     def dynamic_block_pickable(self, block_pose):
         # TODO: check if this is enough, also test on the real robot
-        time_margin = 7.0 + 1.0 # 2 seconds for IK_solver, 3 seconds for moving to the block
+        time_margin = 6.0 + self.time_move_to_target # 2 seconds for IK_solver, 3 seconds for moving to the block
         theta_margin = self.omega_spin_table * time_margin
 
         block_pose_base = self.camera_to_base(block_pose)
@@ -756,7 +778,7 @@ class PickAndPlace:
     """
     def pick_and_place(self):
         order_of_operations = [
-            'dynamic',
+            'dynamic', 'dynamic', 'dynamic', 'dynamic',
             'static', 'static', 
             'static', 'static',
         ]
