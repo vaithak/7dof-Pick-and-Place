@@ -184,7 +184,7 @@ class PickAndPlace:
         self.camera_y = 0.0
 
         # Assumption about time taken to move to desired joint angles
-        self.time_move_to_target = 1.0
+        self.time_move_to_target = 3.72
 
 
     """
@@ -408,13 +408,14 @@ class PickAndPlace:
                 current_joint_positions = self.arm.get_positions()
                 curr_time = time_in_seconds()
                 # Use the IK solver to find a joint angle solution
-                solution, rollout, success, __ = self.IK_solver.inverse(
+                solution, rollout, success, message = self.IK_solver.inverse(
                     target_pose, current_joint_positions, method='J_pseudo', alpha=0.5)
                 time_elapsed = time_in_seconds() - curr_time
                 print("time elapsed in IK: ", time_elapsed)
                 if success:
                     break
                 self.debug_print(f"Failed to find a solution for the target pose. Retrying...")
+                self.debug_print(message)
                 self.debug_print(f"Current joint positions: {current_joint_positions}")
 
             if not success:
@@ -426,13 +427,17 @@ class PickAndPlace:
         # Wait for the required time before moving to the target pose
         if time_to_reach != -1:
             # Consider the time to reach the target pose.
-            time_to_move_to_pose = self.time_move_to_target # 2 second for now
+            time_to_move_to_pose = self.time_move_to_target
             expected_time_to_reach = time_to_reach - time_to_move_to_pose
             while time_in_seconds() < expected_time_to_reach:
+                self.debug_print("Sleeping for 0.1 sec")
                 rospy.sleep(0.1)
         
         # Move to the target pose
+        curr_time = time_in_seconds()
         self.arm.safe_move_to_position(solution)
+        elapsed_time = time_in_seconds() - curr_time
+        self.debug_print(f"Time elapsed for safe move to position: {elapsed_time}")
         
         # Verify the arm moved to the target pose
         self.debug_print(f"Expected moving to target pose:\n {target_pose}")
@@ -553,8 +558,23 @@ class PickAndPlace:
     at given time. Then compute elapsed time according to
     theta difference.
     """
-    def estimate_omega(self, block_name, block_pose, detect_time):
-        return self.omega_spin_table
+    def estimate_omega(self, block_name, theta_old, detect_time):
+        rospy.sleep(2.0)
+        for (name, pose) in detector.get_detections():
+            if self.valid_dynamic_block(pose) and name == block_name:
+                curr_time = time_in_seconds()
+                
+                # Calculate the radius of the block's center from the center of the table
+                block_pose_base = self.camera_to_base(pose)
+                block_pose_world = self.base_to_world(block_pose_base)
+                x_world, y_world, z_world = block_pose_world[:3, 3]
+
+                # theta_new
+                theta_new = np.arctan(abs(x_world)/abs(y_world))
+
+                omega = abs(theta_new - theta_old) / (curr_time - detect_time)
+                self.debug_print(f"detected omega: {omega}")
+        return omega
     
 
     """
@@ -605,8 +625,9 @@ class PickAndPlace:
         self.debug_print(f"Desired end-effector future pose for grasping block {block_name}:\n {desired_end_effector_future_pose}")
 
         # Time after which the block will cross the y-axis, when theta_rotation_around_z is 0
-        omega = self.estimate_omega(block_name, block_pose, detected_time)
-        time_to_cross = theta_rotation_around_z / self.omega_spin_table
+        theta_pose = np.arctan(abs(x_world)/abs(y_world))
+        omega = self.estimate_omega(block_name, theta_pose, detected_time)
+        time_to_cross = theta_pose / omega
 
         # Move to the block with desired end-effector future pose at the time_to_cross + detected_time
         self.move_to_target(desired_end_effector_future_pose, time_to_cross + detected_time)
@@ -711,7 +732,7 @@ class PickAndPlace:
     """
     def dynamic_block_pickable(self, block_pose):
         # TODO: check if this is enough, also test on the real robot
-        time_margin = 6.0 + self.time_move_to_target # 2 seconds for IK_solver, 3 seconds for moving to the block
+        time_margin = 4.0 + self.time_move_to_target # 2 seconds for IK_solver, 3 seconds for moving to the block
         theta_margin = self.omega_spin_table * time_margin
 
         block_pose_base = self.camera_to_base(block_pose)
@@ -779,8 +800,8 @@ class PickAndPlace:
     def pick_and_place(self):
         order_of_operations = [
             'dynamic', 'dynamic', 'dynamic', 'dynamic',
-            'static', 'static', 
-            'static', 'static',
+            # 'static', 'static', 
+            # 'static', 'static',
         ]
 
         # Always first move to the start position after opening the gripper
