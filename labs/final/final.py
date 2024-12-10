@@ -20,15 +20,14 @@ class PickAndPlace:
     def __init__(self,
                  team,
                  arm, 
-                 detector,
-                 start_position,
+                 detector
         ):
         self.arm = arm
         self.team = team
         self.detector = detector
         self.IK_solver = IK()
         self.FK_solver = FK()
-        self.start_position = start_position
+        self.start_position = np.array([0, 0, 0, -pi/2, 0, pi/2, pi/4])
 
         """
         Fixed params we know about the world.
@@ -778,7 +777,7 @@ if __name__ == "__main__":
     arm = ArmController()
     detector = ObjectDetector()
 
-    start_position = np.array([0, 0, 0, -pi/2, 0, pi/2, pi/4])
+    start_position = np.array([-0.01779206, -0.76012354,  0.01978261, -2.34205014, 0.02984053, 1.54119353+pi/2, 0.75344866])
     arm.safe_move_to_position(start_position) # on your mark!
 
     print("\n****************")
@@ -793,7 +792,7 @@ if __name__ == "__main__":
     # STUDENT CODE HERE
 
     # Initialize the pick and place class
-    pick_and_place = PickAndPlace(team, arm, detector, start_position)
+    pick_and_place = PickAndPlace(team, arm, detector)
     pick_and_place.pick_and_place()
 
     # END STUDENT CODE
