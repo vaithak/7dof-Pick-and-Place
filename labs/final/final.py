@@ -2,6 +2,7 @@ import sys
 import numpy as np
 from copy import deepcopy
 from math import pi
+import random
 
 import rospy
 # Common interfaces for interacting with both the simulation and real environments!
@@ -651,8 +652,9 @@ class PickAndPlace:
 
         # Choose one block to pick
         if len(detected_static_blocks) > 0:
-            # Choose any one block
-            block_name, block_pose = detected_static_blocks[0]
+            # Choose any one block - randomly chose any one block
+            i = random.randint(0, len(detected_static_blocks) - 1)
+            block_name, block_pose = detected_static_blocks[i]
             self.debug_print(f"Block {block_name} is chosen for static pick and place.")
 
             if self.grasp_static_block(block_name, block_pose):
