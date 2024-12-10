@@ -1,0 +1,5 @@
+roslaunch meam520_labs vision_pipeline.launch
+
+./franka.sh master
+
+roslaunch franka_interface interface_final.launch team:=
