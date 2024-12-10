@@ -314,6 +314,11 @@ class PickAndPlace:
         block_pose_base = self.camera_to_base(detected_block_pose)
         block_pose_world = self.base_to_world(block_pose_base)
 
+        # Make sure that the block has z-axis pointing up or down
+        max_z = np.max(np.abs(block_pose_base[2, :3]))
+        if max_z < 0.92:
+            return False
+
         # Print the block pose in the world frame
         self.debug_print(f"Block pose in world frame:\n {block_pose_world}")
 
