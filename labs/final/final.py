@@ -554,11 +554,11 @@ class PickAndPlace:
         self.arm.exec_gripper_cmd(pos = 0.040, force = 50)
 
         # Verify the block is grasped
-        gripper_state = self.arm.get_gripper_state()
-        if self.mode == 'real':
-            if gripper_state['force'][0] < 20:
-                print(f"Failed to grasp block {block_name}.")
-                return False
+        # gripper_state = self.arm.get_gripper_state()
+        # if self.mode == 'real':
+        #     if gripper_state['force'][0] < 20:
+        #         print(f"Failed to grasp block {block_name}.")
+        #         return False
         
         self.debug_print(f"Grasped block {block_name}.")
         return True
@@ -649,11 +649,11 @@ class PickAndPlace:
 
         # Verify the block is grasped
         gripper_state = self.arm.get_gripper_state()
-        # TODO: Add this on the real robot, simulation is not accurate
-        if self.mode == 'real':
-            if gripper_state['force'][0] < 20:
-                print(f"Failed to grasp block {block_name}.")
-                return False
+
+        # if self.mode == 'real':
+        #     if gripper_state['force'][0] < 20:
+        #         print(f"Failed to grasp block {block_name}.")
+        #         return False
         
         self.debug_print(f"Grasped block {block_name}.")
         return True
@@ -745,7 +745,7 @@ class PickAndPlace:
     """
     def dynamic_block_pickable(self, block_pose):
         # TODO: check if this is enough, also test on the real robot
-        time_margin = 4.0 + self.time_move_to_target # 2 seconds for IK_solver, 3 seconds for moving to the block
+        time_margin = 5.0 + self.time_move_to_target # 2 seconds for IK_solver, 3 seconds for moving to the block
         theta_margin = self.omega_spin_table * time_margin
 
         block_pose_base = self.camera_to_base(block_pose)
