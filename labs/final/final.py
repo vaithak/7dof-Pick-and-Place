@@ -336,9 +336,9 @@ class PickAndPlace:
         if self.mode == 'simulation':
             if z_world < self.platform_altitude + self.block_size/2 - error_margin:
                 return False
-        else:
-            if z_world < self.platform_altitude + self.block_size - error_margin:
-                return False
+        # else:
+        #     if z_world < self.platform_altitude + self.block_size - error_margin:
+        #         return False
         
         return True
     
@@ -355,6 +355,11 @@ class PickAndPlace:
         # Convert to base frame
         block_pose_base = self.camera_to_base(detected_block_pose)
         block_pose_world = self.base_to_world(block_pose_base)
+
+        # Make sure that the block has z-axis pointing up or down
+        max_z = np.max(np.abs(block_pose_base[2, :3]))
+        if max_z < 0.92:
+            return False
 
         # Print the block pose in the world frame
         self.debug_print(f"Block pose in world frame:\n {block_pose_world}")
@@ -376,9 +381,10 @@ class PickAndPlace:
         if self.mode == 'simulation':
             if z_world < self.spin_table_height + self.block_size/2 - error_margin:
                 return False
-        else:
-            if z_world < self.spin_table_height + self.block_size - error_margin:
-                return False
+        # Commented out as we don't know the z-coordinate of the table in the real world
+        # else:
+        #     if z_world < self.spin_table_height + self.block_size - error_margin:
+        #         return False
 
         return True
 
