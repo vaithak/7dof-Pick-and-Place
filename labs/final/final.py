@@ -831,9 +831,10 @@ class PickAndPlace:
             elif operation == 'dynamic':
                 self.dynamic_pick_and_place()
 
-            # Always in the end move to the start position after opening the gripper
-            self.arm.open_gripper()
-            self.arm.safe_move_to_position(self.start_position)
+            # Check if current position is safe tower position - i.e safe_tower_ee_pose_base
+            if not np.allclose(self.arm.get_positions(), self.cached_joint_angles[self.team]['safe_tower_ee_pose_base']):
+                self.arm.open_gripper()
+                self.arm.safe_move_to_position(self.start_position)
 
 
 if __name__ == "__main__":
