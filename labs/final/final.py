@@ -51,7 +51,7 @@ class PickAndPlace:
         if team == 'red':
             self.world_to_base_y *= -1
 
-        self.platform_altitude = 0.2
+        self.platform_altitude = 0.16
         self.platform_size = 0.25
         self.platform_center_x = 0.562
 
@@ -176,8 +176,8 @@ class PickAndPlace:
             }
         }
 
-        # Assume omega of the spin table is 0.0523 rad/s - equivalent to 0.5 rpm
-        self.omega_spin_table = 0.0523
+        # Assume omega of the spin table is 0.065 rad/s
+        self.omega_spin_table = 0.065
 
         # Offsets for x and y coordinates in camera frame - for real robot
         self.offset_x = {
@@ -185,12 +185,14 @@ class PickAndPlace:
             'blue': 0.0
         }
         self.offset_y = {
-            'red': 0.0,
-            'blue': 0.0
+            'red': 0.009,
+            'blue': 0.015
         }
 
         # Assumption about time taken to move to desired joint angles
-        self.time_move_to_target = 3.75
+        self.time_move_to_target = 3.81
+        if self.mode == 'simulation':
+            self.time_move_to_target = 3.75
 
 
     """
@@ -583,6 +585,7 @@ class PickAndPlace:
     """
     def estimate_omega(self, block_name, theta_old, detect_time):
         rospy.sleep(2.0)
+        omega = None
         for (name, pose) in detector.get_detections():
             if self.valid_dynamic_block(pose) and name == block_name:
                 curr_time = time_in_seconds()
@@ -597,6 +600,8 @@ class PickAndPlace:
 
                 omega = abs(theta_new - theta_old) / (curr_time - detect_time)
                 self.debug_print(f"detected omega: {omega}")
+        if omega is None:
+            return self.omega_spin_table
         return omega
     
 
@@ -611,6 +616,10 @@ class PickAndPlace:
             desired_x_axis = -desired_x_axis
         desired_end_effector_pose, chosen_x, best_angle = \
                 self.find_desired_ee_pose(block_pose, desired_x_axis)
+        
+        if self.mode == 'real':
+            # Fix the z-coordinate to pick the block
+            desired_end_effector_pose[2, 3] = self.platform_altitude
         
         # Hack
         # desired_end_effector_pose[:3, 0] = np.array([1, 0, 0])
@@ -756,7 +765,7 @@ class PickAndPlace:
     """
     def dynamic_block_pickable(self, block_pose):
         # TODO: check if this is enough, also test on the real robot
-        time_margin = 5.0 + self.time_move_to_target # 2 seconds for IK_solver, 3 seconds for moving to the block
+        time_margin = 8.8 + self.time_move_to_target # 8.5 seconds for IK solver
         theta_margin = self.omega_spin_table * time_margin
 
         block_pose_base = self.camera_to_base(block_pose)
@@ -843,7 +852,7 @@ class PickAndPlace:
                 self.dynamic_pick_and_place()
 
             # Check if current position is safe tower position - i.e safe_tower_ee_pose_base
-            if not np.allclose(self.arm.get_positions(), self.cached_joint_angles[self.team]['safe_tower_ee_pose_base']):
+            if not np.allclose(self.arm.get_positions(), self.cached_joint_angles[self.team]['safe_tower_ee_pose_base'], atol = 1e-2, rtol = 1e-2):
                 self.arm.open_gripper()
                 self.arm.safe_move_to_position(self.start_position)
 
