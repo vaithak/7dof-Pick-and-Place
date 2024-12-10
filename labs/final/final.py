@@ -156,7 +156,7 @@ class PickAndPlace:
         self.debug_print(f"Safe dynamic block pose in base frame:\n {self.safe_dynamic_ee_pose_base}")
 
         # Mode to define whether we are running in simulation or real robot
-        self.mode = 'simulation'
+        self.mode = 'real'
         self.placed_static_blocks = 0
         self.placed_moving_blocks = 0
 
@@ -179,12 +179,18 @@ class PickAndPlace:
         # Assume omega of the spin table is 0.0523 rad/s - equivalent to 0.5 rpm
         self.omega_spin_table = 0.0523
 
-        # Offsets for x and y coordinates in camera frame
-        self.camera_x = 0.0
-        self.camera_y = 0.0
+        # Offsets for x and y coordinates in camera frame - for real robot
+        self.offset_x = {
+            'red': 0.0,
+            'blue': 0.0
+        }
+        self.offset_y = {
+            'red': 0.0,
+            'blue': 0.0
+        }
 
         # Assumption about time taken to move to desired joint angles
-        self.time_move_to_target = 3.72
+        self.time_move_to_target = 3.75
 
 
     """
@@ -526,7 +532,13 @@ class PickAndPlace:
     def grasp_static_block(self, block_name, block_pose):
         desired_end_effector_pose, chosen_x, best_angle = \
                 self.find_desired_ee_pose(block_pose, np.array([1, 0, 0]))
-        desired_end_effector_pose[2, 3] = self.platform_altitude + self.block_size/2 + 0.01 # Fix the z-coordinate to pick the block
+        if self.mode == 'real':
+            # Add offsets to the x and y coordinates
+            desired_end_effector_pose[0, 3] += self.offset_x[self.team]
+            desired_end_effector_pose[1, 3] += self.offset_y[self.team]
+
+            # Fix the z-coordinate to pick the block
+            desired_end_effector_pose[2, 3] = self.platform_altitude + self.block_size - 0.01
         self.debug_print(f"Desired end-effector pose for grasping block {block_name}:\n {desired_end_effector_pose}")
 
         # Move to the intermediate pose above the block
