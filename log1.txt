@@ -1,0 +1,606 @@
+[INFO] [1730484211.505727]: Waiting for collision behaviour services...
+[INFO] [1730484211.511059]: Collision behaviour services found.
+[ INFO] [1730484211.628814464]: Loading robot model 'panda'...
+[ INFO] [1730484212.776871568]: Ready to take commands for planning group panda_arm.
+[FATAL] [1730484212.788693478]: Group 'hand' was not found.
+[INFO] [1730484212.789065]: ArmController: MoveGroup was not found! This is okay if moveit service is not required!
+[INFO] [1730484213.000162]: GripperInterface: Waiting for gripper action servers... 
+[INFO] [1730484213.440869]: GripperInterface: Gripper action servers found! 
+[INFO] [1730484217.579116]: ArmController: Trajectory controlling complete
+
+****************
+** BLUE TEAM  **
+****************
+
+Waiting for start... Press ENTER to begin!
+
+Go!
+
+H_ee_camera:
+ [[ 0.      -1.       0.       0.06008]
+ [ 1.       0.       0.      -0.015  ]
+ [ 0.       0.       1.      -0.06837]
+ [ 0.       0.       0.       1.     ]]
+Safe static block pose in base frame:
+ [[ 1.      0.      0.      0.4995]
+ [ 0.     -1.      0.      0.169 ]
+ [ 0.      0.     -1.      0.45  ]
+ [ 0.      0.      0.      1.    ]]
+Safe tower block pose in base frame:
+ [[ 1.     0.     0.     0.437]
+ [ 0.    -1.     0.    -0.169]
+ [ 0.     0.    -1.     0.45 ]
+ [ 0.     0.     0.     1.   ]]
+Safe dynamic block pose in base frame:
+ [[ 0.     -1.      0.      0.    ]
+ [-1.      0.      0.     -0.6852]
+ [ 0.      0.     -1.      0.4   ]
+ [ 0.      0.      0.      1.    ]]
+Attempting operation 1 in mode: static.
+[INFO] [1730484219.725069]: ArmController: Trajectory controlling complete
+Found joint angles in cache for safe static pose:
+ [ 0.107 -0.115  0.207 -1.885  0.024  1.772  1.093]
+[INFO] [1730484223.500647]: ArmController: Trajectory controlling complete
+Expected moving to target pose:
+ [[ 1.      0.      0.      0.4995]
+ [ 0.     -1.      0.      0.169 ]
+ [ 0.      0.     -1.      0.45  ]
+ [ 0.      0.      0.      1.    ]]
+Actual joint angles after moving to target pose:
+ [ 0.1068691  -0.11468706  0.20679209 -1.88496099  0.02371193  1.77158801
+  1.09287816]
+Actual end-effector pose after moving to target pose:
+ [[ 1.000e+00  1.000e-04 -9.000e-04  4.994e-01]
+ [ 1.000e-04 -1.000e+00 -6.000e-04  1.688e-01]
+ [-9.000e-04  6.000e-04 -1.000e+00  4.499e-01]
+ [ 0.000e+00  0.000e+00  0.000e+00  1.000e+00]]
+Error in joint angles after moving to target pose:
+ 0.0006537418477852799
+Error in end-effector pose after moving to target pose:
+ 0.001555634918610411
+Detected block: cube0_static at pose:
+ [[-0.00973321 -0.62566481  0.78003129  0.02144484]
+ [ 0.06898496  0.77778957  0.62472751  0.00257349]
+ [-0.99757022  0.05989104  0.03559107  0.25987115]
+ [ 0.          0.          0.          1.        ]]
+Block pose in world frame:
+ [[-0.06808812 -0.77790604 -0.62468154  0.55673481]
+ [ 0.01032486  0.62555109 -0.78011512  1.15224601]
+ [ 0.99762646 -0.05956642 -0.0345608   0.25835096]
+ [ 0.          0.          0.          1.        ]]
+Block cube0_static is a valid static block!
+Total blocks detected: 1
+Valid blocks detected: 1
+Block cube0_static is chosen for static pick and place.
+Block pose in base frame:
+ [[-0.06808812 -0.77790604 -0.62468154  0.55673481]
+ [ 0.01032486  0.62555109 -0.78011512  0.16224601]
+ [ 0.99762646 -0.05956642 -0.0345608   0.25835096]
+ [ 0.          0.          0.          1.        ]]
+Axis with max value: 0
+Desired end-effector pose for grasping block cube0_static:
+ [[ 0.77790604 -0.62555109  0.          0.55673481]
+ [-0.62555109 -0.77790604  0.          0.16224601]
+ [ 0.05956642 -0.         -1.          0.225     ]
+ [ 0.          0.          0.          1.        ]]
+Found joint angles in cache for safe intermediate static pose:
+ [ 0.18416  0.07999  0.11214 -1.78303 -0.00938  1.86251  1.084  ]
+[INFO] [1730484227.264836]: ArmController: Trajectory controlling complete
+Expected moving to target pose:
+ [[ 1.     0.     0.     0.437]
+ [ 0.    -1.     0.    -0.169]
+ [ 0.     0.    -1.     0.4  ]
+ [ 0.     0.     0.     1.   ]]
+Actual joint angles after moving to target pose:
+ [ 0.18402513  0.07999357  0.11227332 -1.78334321 -0.00898805  1.86198995
+  1.084112  ]
+Actual end-effector pose after moving to target pose:
+ [[ 1.000e+00 -2.000e-04 -9.000e-04  5.618e-01]
+ [-2.000e-04 -1.000e+00  1.000e-04  1.690e-01]
+ [-9.000e-04 -1.000e-04 -1.000e+00  3.998e-01]
+ [ 0.000e+00  0.000e+00  0.000e+00  1.000e+00]]
+Error in joint angles after moving to target pose:
+ 0.0007517721149098174
+Error in end-effector pose after moving to target pose:
+ 0.360306536160531
+[ 0.31820836  0.20688765 -0.03000491 -2.08590219 -0.02480783  2.30952005
+  1.76809263]
+Solution not within angular tolerances
+Failed to find a solution for the target pose. Retrying...
+Current joint positions: [ 0.18402344  0.07999357  0.11227423 -1.78334143 -0.00898836  1.86199559
+  1.08411931]
+^C
+^C
+^C
+^C
+^C
+^C
+^C[ 0.31821691  0.20691573 -0.03001993 -2.08587254 -0.02480469  2.30951421
+  1.76808632]
+Solution not within angular tolerances
+Failed to find a solution for the target pose. Retrying...
+Current joint positions: [ 0.18405202  0.08002361  0.11225124 -1.78332092 -0.00901743  1.8620128
+  1.08409451]
+^C
+^C
+c^[[A^C^C
+^C
+[ 0.31821593  0.20691599 -0.03002608 -2.08587576 -0.02480455  2.30951922
+  1.76808206]
+Solution not within angular tolerances
+Failed to find a solution for the target pose. Retrying...
+Current joint positions: [ 0.18404874  0.08002272  0.11224724 -1.78331913 -0.00901667  1.86201205
+  1.08409916]
+Failed to find a solution for the target pose.
+Grasped block cube0_static.
+Found joint angles in cache for safe static pose:
+ [ 0.107 -0.115  0.207 -1.885  0.024  1.772  1.093]
+
+
+
+
+
+
+
+
+ [INFO] [1730484303.667085]: Waiting for collision behaviour services...
+[INFO] [1730484303.669763]: Collision behaviour services found.
+[ INFO] [1730484303.754809179]: Loading robot model 'panda'...
+[ INFO] [1730484304.844180685]: Ready to take commands for planning group panda_arm.
+[FATAL] [1730484304.853060969]: Group 'hand' was not found.
+[INFO] [1730484304.853532]: ArmController: MoveGroup was not found! This is okay if moveit service is not required!
+[INFO] [1730484305.077570]: GripperInterface: Waiting for gripper action servers... 
+[INFO] [1730484306.319721]: GripperInterface: Gripper action servers found! 
+[INFO] [1730484310.439552]: ArmController: Trajectory controlling complete
+
+****************
+** BLUE TEAM  **
+****************
+
+Waiting for start... Press ENTER to begin!
+
+Go!
+
+H_ee_camera:
+ [[ 0.      -1.       0.       0.06008]
+ [ 1.       0.       0.      -0.015  ]
+ [ 0.       0.       1.      -0.06837]
+ [ 0.       0.       0.       1.     ]]
+Safe static block pose in base frame:
+ [[ 1.      0.      0.      0.4995]
+ [ 0.     -1.      0.      0.169 ]
+ [ 0.      0.     -1.      0.45  ]
+ [ 0.      0.      0.      1.    ]]
+Safe tower block pose in base frame:
+ [[ 1.     0.     0.     0.437]
+ [ 0.    -1.     0.    -0.169]
+ [ 0.     0.    -1.     0.45 ]
+ [ 0.     0.     0.     1.   ]]
+Safe dynamic block pose in base frame:
+ [[ 0.     -1.      0.      0.    ]
+ [-1.      0.      0.     -0.6852]
+ [ 0.      0.     -1.      0.4   ]
+ [ 0.      0.      0.      1.    ]]
+Attempting operation 1 in mode: static.
+[INFO] [1730484315.464510]: ArmController: Trajectory controlling complete
+Found joint angles in cache for safe static pose:
+ [ 0.107 -0.115  0.207 -1.885  0.024  1.772  1.093]
+[ERROR] [1730484315.473982]: Got a transition callback on a goal handle that we're not tracking
+[INFO] [1730484319.237942]: ArmController: Trajectory controlling complete
+Expected moving to target pose:
+ [[ 1.      0.      0.      0.4995]
+ [ 0.     -1.      0.      0.169 ]
+ [ 0.      0.     -1.      0.45  ]
+ [ 0.      0.      0.      1.    ]]
+Actual joint angles after moving to target pose:
+ [ 0.10686962 -0.11468832  0.20680058 -1.88496942  0.02370894  1.77158725
+  1.0928757 ]
+Actual end-effector pose after moving to target pose:
+ [[ 1.000e+00  1.000e-04 -9.000e-04  4.994e-01]
+ [ 1.000e-04 -1.000e+00 -6.000e-04  1.688e-01]
+ [-9.000e-04  6.000e-04 -1.000e+00  4.499e-01]
+ [ 0.000e+00  0.000e+00  0.000e+00  1.000e+00]]
+Error in joint angles after moving to target pose:
+ 0.0006503570954397707
+Error in end-effector pose after moving to target pose:
+ 0.001555634918610411
+Detected block: cube0_static at pose:
+ [[ 0.0250664   0.02813113  0.99928991  0.01529835]
+ [ 0.04838365  0.99839841 -0.0293197  -0.00372994]
+ [-0.99851425  0.04908423  0.02366517  0.2595973 ]
+ [ 0.          0.          0.          1.        ]]
+Block pose in world frame:
+ [[-0.04748248 -0.99843977  0.02939833  0.56303787]
+ [-0.02447213 -0.02826042 -0.99930117  1.15839329]
+ [ 0.99857283 -0.04816879 -0.02309198  0.25861545]
+ [ 0.          0.          0.          1.        ]]
+Block cube0_static is a valid static block!
+Total blocks detected: 1
+Valid blocks detected: 1
+Block cube0_static is chosen for static pick and place.
+Block pose in base frame:
+ [[-0.04748248 -0.99843977  0.02939833  0.56303787]
+ [-0.02447213 -0.02826042 -0.99930117  0.16839329]
+ [ 0.99857283 -0.04816879 -0.02309198  0.25861545]
+ [ 0.          0.          0.          1.        ]]
+Axis with max value: 0
+Desired end-effector pose for grasping block cube0_static:
+ [[ 0.99843977  0.02826042  0.          0.56303787]
+ [ 0.02826042 -0.99843977  0.          0.16839329]
+ [ 0.04816879  0.         -1.          0.225     ]
+ [ 0.          0.          0.          1.        ]]
+Found joint angles in cache for safe intermediate static pose:
+ [ 0.18416  0.07999  0.11214 -1.78303 -0.00938  1.86251  1.084  ]
+[INFO] [1730484323.016389]: ArmController: Trajectory controlling complete
+Expected moving to target pose:
+ [[ 1.     0.     0.     0.437]
+ [ 0.    -1.     0.    -0.169]
+ [ 0.     0.    -1.     0.4  ]
+ [ 0.     0.     0.     1.   ]]
+Actual joint angles after moving to target pose:
+ [ 0.18402395  0.08000128  0.11228343 -1.78334858 -0.00898951  1.86199407
+  1.08412214]
+Actual end-effector pose after moving to target pose:
+ [[ 1.000e+00 -2.000e-04 -9.000e-04  5.618e-01]
+ [-2.000e-04 -1.000e+00  1.000e-04  1.690e-01]
+ [-9.000e-04 -1.000e-04 -1.000e+00  3.998e-01]
+ [ 0.000e+00  0.000e+00  0.000e+00  1.000e+00]]
+Error in joint angles after moving to target pose:
+ 0.0007578214862953825
+Error in end-effector pose after moving to target pose:
+ 0.360306536160531
+[ 0.26272543  0.22506211  0.03022288 -2.06147714 -0.01764196  2.30958929
+  1.06097108]
+Solution not within angular tolerances
+Failed to find a solution for the target pose. Retrying...
+Current joint positions: [ 0.18402395  0.07999776  0.11228156 -1.7833506  -0.00898821  1.86199211
+  1.08411673]
+^C
+^C
+^C
+[ 0.26272828  0.22507185  0.03021521 -2.06148295 -0.01763541  2.30960019
+  1.06096615]
+Solution not within angular tolerances
+Failed to find a solution for the target pose. Retrying...
+Current joint positions: [ 0.18404806  0.08001973  0.11225332 -1.78332016 -0.00901743  1.86201129
+  1.08410393]
+
+
+
+
+
+
+[INFO] [1730484533.657176]: Waiting for collision behaviour services...
+[INFO] [1730484533.660620]: Collision behaviour services found.
+[ INFO] [1730484533.740007546]: Loading robot model 'panda'...
+[ INFO] [1730484535.075895928]: Ready to take commands for planning group panda_arm.
+[FATAL] [1730484535.081157638]: Group 'hand' was not found.
+[INFO] [1730484535.081470]: ArmController: MoveGroup was not found! This is okay if moveit service is not required!
+[INFO] [1730484535.265412]: GripperInterface: Waiting for gripper action servers... 
+[INFO] [1730484535.497941]: GripperInterface: Gripper action servers found! 
+[INFO] [1730484539.667326]: ArmController: Trajectory controlling complete
+
+****************
+** BLUE TEAM  **
+****************
+
+Waiting for start... Press ENTER to begin!
+
+Go!
+
+H_ee_camera:
+ [[ 0.      -1.       0.       0.06008]
+ [ 1.       0.       0.      -0.015  ]
+ [ 0.       0.       1.      -0.06837]
+ [ 0.       0.       0.       1.     ]]
+Safe static block pose in base frame:
+ [[ 1.      0.      0.      0.4995]
+ [ 0.     -1.      0.      0.169 ]
+ [ 0.      0.     -1.      0.45  ]
+ [ 0.      0.      0.      1.    ]]
+Safe tower block pose in base frame:
+ [[ 1.     0.     0.     0.437]
+ [ 0.    -1.     0.    -0.169]
+ [ 0.     0.    -1.     0.45 ]
+ [ 0.     0.     0.     1.   ]]
+Safe dynamic block pose in base frame:
+ [[ 0.     -1.      0.      0.    ]
+ [-1.      0.      0.     -0.6852]
+ [ 0.      0.     -1.      0.4   ]
+ [ 0.      0.      0.      1.    ]]
+Attempting operation 1 in mode: static.
+[INFO] [1730484541.635270]: ArmController: Trajectory controlling complete
+Found joint angles in cache for safe static pose:
+ [ 0.107 -0.115  0.207 -1.885  0.024  1.772  1.093]
+[INFO] [1730484545.408361]: ArmController: Trajectory controlling complete
+Expected moving to target pose:
+ [[ 1.      0.      0.      0.4995]
+ [ 0.     -1.      0.      0.169 ]
+ [ 0.      0.     -1.      0.45  ]
+ [ 0.      0.      0.      1.    ]]
+Actual joint angles after moving to target pose:
+ [ 0.10686164 -0.1146831   0.20679701 -1.88496226  0.02370821  1.77158766
+  1.09286086]
+Actual end-effector pose after moving to target pose:
+ [[ 1.000e+00  1.000e-04 -9.000e-04  4.994e-01]
+ [ 1.000e-04 -1.000e+00 -6.000e-04  1.688e-01]
+ [-9.000e-04  6.000e-04 -1.000e+00  4.499e-01]
+ [ 0.000e+00  0.000e+00  0.000e+00  1.000e+00]]
+Error in joint angles after moving to target pose:
+ 0.0006589846914680232
+Error in end-effector pose after moving to target pose:
+ 0.001555634918610411
+Detected block: cube0_static at pose:
+ [[ 0.03634318  0.12980174  0.9908737  -0.03546596]
+ [-0.02361239  0.99136345 -0.12899984  0.06277287]
+ [-0.99906037 -0.01870864  0.03909423  0.26184282]
+ [ 0.          0.          0.          1.        ]]
+Block pose in world frame:
+ [[ 0.02451518 -0.99133364  0.12906374  0.49652796]
+ [-0.03574139 -0.12988965 -0.99088425  1.20914961]
+ [ 0.99906093  0.01967874 -0.03861581  0.25639933]
+ [ 0.          0.          0.          1.        ]]
+Block cube0_static is a valid static block!
+Detected block: cube1_static at pose:
+ [[-0.02650362  0.04008693  0.99884463  0.06318531]
+ [ 0.99839165 -0.04903235  0.02845943 -0.05786034]
+ [ 0.05011655  0.99799242 -0.03872292  0.24195724]
+ [ 0.          0.          0.          1.        ]]
+Block pose in world frame:
+ [[-0.99843941  0.04813817 -0.0283247   0.61718893]
+ [ 0.02637371 -0.04068082 -0.99882424  1.11052234]
+ [-0.0492339  -0.9980125   0.03934784  0.27623553]
+ [ 0.          0.          0.          1.        ]]
+Block cube1_static is a valid static block!
+Detected block: cube2_static at pose:
+ [[ 0.07719547  0.03078501  0.99654059  0.07443567]
+ [ 0.99645871 -0.03579607 -0.07608332  0.05254599]
+ [ 0.03333002  0.99888484 -0.03343928  0.2465159 ]
+ [ 0.          0.          0.          1.        ]]
+Block pose in world frame:
+ [[-0.99648099  0.03490016  0.07621307  0.50677962]
+ [-0.07731511 -0.03138076 -0.99651292  1.0992582 ]
+ [-0.03238689 -0.99889859  0.03396873  0.27178298]
+ [ 0.          0.          0.          1.        ]]
+Block cube2_static is a valid static block!
+Detected block: cube6_static at pose:
+ [[-0.05395472 -0.99715529  0.05263286 -0.03019209]
+ [-0.01246505 -0.05203293 -0.99856757 -0.05059291]
+ [ 0.99846558 -0.05453351 -0.00962217  0.25650345]
+ [ 0.          0.          0.          1.        ]]
+Block pose in world frame:
+ [[ 0.01156104  0.0519823   0.9985815   0.60989907]
+ [ 0.05335689  0.99719321 -0.05252723  1.20389027]
+ [-0.99850917  0.05388838  0.00875504  0.26163983]
+ [ 0.          0.          0.          1.        ]]
+Block cube6_static is a valid static block!
+Total blocks detected: 4
+Valid blocks detected: 4
+Block cube0_static is chosen for static pick and place.
+Block pose in base frame:
+ [[ 0.02451518 -0.99133364  0.12906374  0.49652796]
+ [-0.03574139 -0.12988965 -0.99088425  0.21914961]
+ [ 0.99906093  0.01967874 -0.03861581  0.25639933]
+ [ 0.          0.          0.          1.        ]]
+Axis with max value: 0
+Desired end-effector pose for grasping block cube0_static:
+ [[ 0.99133364  0.12988965  0.          0.49652796]
+ [ 0.12988965 -0.99133364  0.          0.21914961]
+ [-0.01967874  0.         -1.          0.225     ]
+ [ 0.          0.          0.          1.        ]]
+Found joint angles in cache for safe intermediate static pose:
+ [ 0.18416  0.07999  0.11214 -1.78303 -0.00938  1.86251  1.084  ]
+[INFO] [1730484549.197852]: ArmController: Trajectory controlling complete
+Expected moving to target pose:
+ [[ 1.     0.     0.     0.437]
+ [ 0.    -1.     0.    -0.169]
+ [ 0.     0.    -1.     0.4  ]
+ [ 0.     0.     0.     1.   ]]
+Actual joint angles after moving to target pose:
+ [ 0.18401235  0.07998519  0.11228773 -1.78335453 -0.00899149  1.86198906
+  1.08412883]
+Actual end-effector pose after moving to target pose:
+ [[ 1.000e+00 -2.000e-04 -9.000e-04  5.618e-01]
+ [-2.000e-04 -1.000e+00  1.000e-04  1.690e-01]
+ [-9.000e-04 -1.000e-04 -1.000e+00  3.998e-01]
+ [ 0.000e+00  0.000e+00  0.000e+00  1.000e+00]]
+Error in joint angles after moving to target pose:
+ 0.0007667288964038706
+Error in end-effector pose after moving to target pose:
+ 0.360306536160531
+[ 0.27508119  0.12008939  0.14160451 -2.20116531 -0.01909931  2.31053264
+  1.08379119]
+Solution not within angular tolerances
+Failed to find a solution for the target pose. Retrying...
+Current joint positions: [ 0.18401136  0.07998515  0.11228665 -1.78335453 -0.00898957  1.86199058
+  1.08412766]
+Failed to find a solution for the target pose.
+Grasped block cube0_static.
+Found joint angles in cache for safe static pose:
+ [ 0.107 -0.115  0.207 -1.885  0.024  1.772  1.093]
+[INFO] [1730484598.877025]: ArmController: Trajectory controlling complete
+Expected moving to target pose:
+ [[ 1.      0.      0.      0.4995]
+ [ 0.     -1.      0.      0.169 ]
+ [ 0.      0.     -1.      0.45  ]
+ [ 0.      0.      0.      1.    ]]
+Actual joint angles after moving to target pose:
+ [ 0.10714133 -0.11468433  0.20680482 -1.88496467  0.02370876  1.77215752
+  1.09288481]
+Actual end-effector pose after moving to target pose:
+ [[ 1.000e+00  4.000e-04 -4.000e-04  4.994e-01]
+ [ 4.000e-04 -1.000e+00 -4.000e-04  1.690e-01]
+ [-4.000e-04  4.000e-04 -1.000e+00  4.499e-01]
+ [ 0.000e+00  0.000e+00  0.000e+00  1.000e+00]]
+Error in joint angles after moving to target pose:
+ 0.0005309075554829835
+Error in end-effector pose after moving to target pose:
+ 0.0009899494936611698
+Found joint angles in cache for safe tower pose:
+ [-0.23  -0.295 -0.121 -2.073 -0.036  1.78   0.447]
+[INFO] [1730484602.681784]: ArmController: Trajectory controlling complete
+Expected moving to target pose:
+ [[ 1.     0.     0.     0.437]
+ [ 0.    -1.     0.    -0.169]
+ [ 0.     0.    -1.     0.45 ]
+ [ 0.     0.     0.     1.   ]]
+Actual joint angles after moving to target pose:
+ [-0.22985336 -0.29466562 -0.12084904 -2.07304793 -0.03558187  1.77967251
+  0.447141  ]
+Actual end-effector pose after moving to target pose:
+ [[ 1.000e+00  1.000e-04 -5.000e-04  4.371e-01]
+ [ 1.000e-04 -1.000e+00  4.000e-04 -1.688e-01]
+ [-5.000e-04 -4.000e-04 -1.000e+00  4.499e-01]
+ [ 0.000e+00  0.000e+00  0.000e+00  1.000e+00]]
+Error in joint angles after moving to target pose:
+ 0.0006772273092253817
+Error in end-effector pose after moving to target pose:
+ 0.0009486832980505127
+Placing block cube0_static on the tower.
+[-0.12021973  0.20138719 -0.17901051 -2.02184148  0.04467062  2.2196322
+  0.46271421]
+Solution is valid
+Joint angles found using IK solver: [-0.12021973  0.20138719 -0.17901051 -2.02184148  0.04467062  2.2196322
+  0.46271421]
+[ERROR] [1730484603.401554]: Got a transition callback on a goal handle that we're not tracking
+[INFO] [1730484607.204437]: ArmController: Trajectory controlling complete
+Expected moving to target pose:
+ [[ 1.     0.     0.     0.562]
+ [ 0.    -1.     0.    -0.169]
+ [ 0.     0.    -1.     0.25 ]
+ [ 0.     0.     0.     1.   ]]
+Actual joint angles after moving to target pose:
+ [-0.12037271  0.20142101 -0.17881239 -2.02213413  0.04430271  2.219054
+  0.46259899]
+Actual end-effector pose after moving to target pose:
+ [[ 1.000e+00  4.000e-04 -9.000e-04  5.618e-01]
+ [ 4.000e-04 -1.000e+00 -0.000e+00 -1.689e-01]
+ [-9.000e-04  0.000e+00 -1.000e+00  2.498e-01]
+ [ 0.000e+00  0.000e+00  0.000e+00  1.000e+00]]
+Error in joint angles after moving to target pose:
+ 0.000795222614957045
+Error in end-effector pose after moving to target pose:
+ 0.0014247806848775172
+Placed block cube0_static on the tower.
+Found joint angles in cache for safe tower pose:
+ [-0.23  -0.295 -0.121 -2.073 -0.036  1.78   0.447]
+[INFO] [1730484613.688450]: ArmController: Trajectory controlling complete
+Expected moving to target pose:
+ [[ 1.     0.     0.     0.437]
+ [ 0.    -1.     0.    -0.169]
+ [ 0.     0.    -1.     0.45 ]
+ [ 0.     0.     0.     1.   ]]
+Actual joint angles after moving to target pose:
+ [-0.22985072 -0.29466901 -0.12115158 -2.07304459 -0.03559371  1.78019768
+  0.44711365]
+Actual end-effector pose after moving to target pose:
+ [[ 1.000e+00 -1.000e-04  0.000e+00  4.372e-01]
+ [-1.000e-04 -1.000e+00  3.000e-04 -1.690e-01]
+ [ 0.000e+00 -3.000e-04 -1.000e+00  4.499e-01]
+ [ 0.000e+00  0.000e+00  0.000e+00  1.000e+00]]
+Error in joint angles after moving to target pose:
+ 0.0006148845905588241
+Error in end-effector pose after moving to target pose:
+ 0.0004999999999999667
+Placed 1 static blocks.
+Attempting operation 2 in mode: static.
+[ERROR] [1730484613.701056]: Got a transition callback on a goal handle that we're not tracking
+[INFO] [1730484617.826460]: ArmController: Trajectory controlling complete
+Found joint angles in cache for safe static pose:
+ [ 0.107 -0.115  0.207 -1.885  0.024  1.772  1.093]
+[INFO] [1730484621.605702]: ArmController: Trajectory controlling complete
+Expected moving to target pose:
+ [[ 1.      0.      0.      0.4995]
+ [ 0.     -1.      0.      0.169 ]
+ [ 0.      0.     -1.      0.45  ]
+ [ 0.      0.      0.      1.    ]]
+Actual joint angles after moving to target pose:
+ [ 0.10682695 -0.11473112  0.20678978 -1.88498214  0.02370783  1.77159867
+  1.09286185]
+Actual end-effector pose after moving to target pose:
+ [[ 1.000e+00  1.000e-04 -9.000e-04  4.994e-01]
+ [ 1.000e-04 -1.000e+00 -6.000e-04  1.688e-01]
+ [-9.000e-04  6.000e-04 -1.000e+00  4.499e-01]
+ [ 0.000e+00  0.000e+00  0.000e+00  1.000e+00]]
+Error in joint angles after moving to target pose:
+ 0.0006420835086251562
+Error in end-effector pose after moving to target pose:
+ 0.001555634918610411
+Detected block: cube0_static at pose:
+ [[ 0.0404194   0.12916429  0.9907991  -0.03561008]
+ [-0.02296783  0.99146754 -0.12831447  0.06283298]
+ [-0.99891879 -0.01757011  0.04304114  0.26214487]
+ [ 0.          0.          0.          1.        ]]
+Block pose in world frame:
+ [[ 0.0238709  -0.99143881  0.12837481  0.49646756]
+ [-0.03981775 -0.1292529  -0.99081209  1.20929354]
+ [ 0.99892237  0.01853993 -0.04256215  0.25609724]
+ [ 0.          0.          0.          1.        ]]
+Block cube0_static is a valid static block!
+Detected block: cube1_static at pose:
+ [[-0.02751432  0.03848372  0.99888036  0.06321976]
+ [ 0.99879055 -0.0396748   0.02904039 -0.05774248]
+ [ 0.04074796  0.99847129 -0.03734555  0.24233199]
+ [ 0.          0.          0.          1.        ]]
+Block pose in world frame:
+ [[-0.99882998  0.03878003 -0.02890689  0.61707074]
+ [ 0.02738999 -0.03907884 -0.99886085  1.11048765]
+ [-0.03986556 -0.99848391  0.03797102  0.27586091]
+ [ 0.          0.          0.          1.        ]]
+Block cube1_static is a valid static block!
+Detected block: cube2_static at pose:
+ [[ 0.0779092   0.03597288  0.99631125  0.07479011]
+ [ 0.99640211 -0.03625092 -0.07660742  0.05267851]
+ [ 0.03336141  0.99869506 -0.03866774  0.24720812]
+ [ 0.          0.          0.          1.        ]]
+Block pose in world frame:
+ [[-0.99642435  0.03535569  0.07674186  0.50664651]
+ [-0.07802885 -0.03656848 -0.99628039  1.09890333]
+ [-0.0324179  -0.9987061   0.03919658  0.27109109]
+ [ 0.          0.          0.          1.        ]]
+Block cube2_static is a valid static block!
+Detected block: cube6_static at pose:
+ [[-0.05732556 -0.99697413  0.05250104 -0.03041037]
+ [-0.00981646 -0.05202209 -0.99859769 -0.0507387 ]
+ [ 0.99830728 -0.05776055 -0.00680456  0.25730103]
+ [ 0.          0.          0.          1.        ]]
+Block pose in world frame:
+ [[ 0.00891225  0.05197438  0.99860906  0.61004412]
+ [ 0.05672756  0.99701399 -0.0523971   1.20410809]
+ [-0.99835051  0.05711555  0.00593732  0.26084199]
+ [ 0.          0.          0.          1.        ]]
+Block cube6_static is a valid static block!
+Total blocks detected: 4
+Valid blocks detected: 4
+Block cube0_static is chosen for static pick and place.
+Block pose in base frame:
+ [[ 0.0238709  -0.99143881  0.12837481  0.49646756]
+ [-0.03981775 -0.1292529  -0.99081209  0.21929354]
+ [ 0.99892237  0.01853993 -0.04256215  0.25609724]
+ [ 0.          0.          0.          1.        ]]
+Axis with max value: 0
+Desired end-effector pose for grasping block cube0_static:
+ [[ 0.99143881  0.1292529   0.          0.49646756]
+ [ 0.1292529  -0.99143881  0.          0.21929354]
+ [-0.01853993  0.         -1.          0.225     ]
+ [ 0.          0.          0.          1.        ]]
+Found joint angles in cache for safe intermediate static pose:
+ [ 0.18416  0.07999  0.11214 -1.78303 -0.00938  1.86251  1.084  ]
+[INFO] [1730484625.382625]: ArmController: Trajectory controlling complete
+Expected moving to target pose:
+ [[ 1.     0.     0.     0.437]
+ [ 0.    -1.     0.    -0.169]
+ [ 0.     0.    -1.     0.4  ]
+ [ 0.     0.     0.     1.   ]]
+Actual joint angles after moving to target pose:
+ [ 0.18397886  0.07997641  0.11228772 -1.78335454 -0.00900464  1.86200084
+  1.08413282]
+Actual end-effector pose after moving to target pose:
+ [[ 1.000e+00 -2.000e-04 -9.000e-04  5.618e-01]
+ [-2.000e-04 -1.000e+00  1.000e-04  1.690e-01]
+ [-9.000e-04 -1.000e-04 -1.000e+00  3.998e-01]
+ [ 0.000e+00  0.000e+00  0.000e+00  1.000e+00]]
+Error in joint angles after moving to target pose:
+ 0.0007602150346722228
+Error in end-effector pose after moving to target pose:
+ 0.360306536160531

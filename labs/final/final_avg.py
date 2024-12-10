@@ -2,10 +2,7 @@ import sys
 import numpy as np
 from copy import deepcopy
 from math import pi
-import random
-
 import rospy
-# Common interfaces for interacting with both the simulation and real environments!
 from core.interfaces import ArmController
 from core.interfaces import ObjectDetector
 from lib.IK_position_null import IK
@@ -20,14 +17,15 @@ class PickAndPlace:
     def __init__(self,
                  team,
                  arm, 
-                 detector
+                 detector,
+                 start_position,
         ):
         self.arm = arm
         self.team = team
         self.detector = detector
         self.IK_solver = IK()
         self.FK_solver = FK()
-        self.start_position = np.array([0, 0, 0, -pi/2, 0, pi/2, pi/4])
+        self.start_position = start_position
 
         """
         Fixed params we know about the world.
@@ -99,9 +97,9 @@ class PickAndPlace:
 
         # Define a safe pose for the end-effector above the tower-building area.
         safe_position_ee = np.array([
-                self.platform_center_x - self.platform_size/2, # more back to ensure no collision
+                safe_position_ee[0] - self.platform_size/4, # more back to ensure no collision
                 -safe_position_ee[1],
-                safe_position_ee[2]
+                safe_z
             ])
         self.safe_tower_ee_pose_base = np.array([
             [1, 0, 0, safe_position_ee[0]],
@@ -115,8 +113,8 @@ class PickAndPlace:
         # This will be useful to first move the arm to this pose before moving to the
         # grasping pose - better for convergence of the IK solver.
         safe_position_ee = np.array([
-                self.platform_center_x,
-                self.safe_static_ee_pose_base[1, 3],
+                safe_position_ee[0],
+                safe_position_ee[1],
                 self.platform_altitude + self.block_size + 0.15
             ])
         self.safe_intermediate_static_ee_pose_base = np.array([
@@ -125,7 +123,6 @@ class PickAndPlace:
             [0, 0, -1, safe_position_ee[2]],
             [0, 0, 0, 1]
         ])
-        self.debug_print(f"Safe intermediate static block pose in base frame:\n {self.safe_intermediate_static_ee_pose_base}")
 
         # Define a safe pose for the end-effector above the dynamic table area.
         self.spin_table_radius = 0.3048 # from the center of the table
@@ -155,8 +152,9 @@ class PickAndPlace:
             ])
         self.debug_print(f"Safe dynamic block pose in base frame:\n {self.safe_dynamic_ee_pose_base}")
 
-        # Mode to define whether we are running in simulation or real robot
-        self.mode = 'simulation'
+        # Mode to define whether we are aiming for the static block 
+        # or the moving block.
+        self.mode = 'static'
         self.placed_static_blocks = 0
         self.placed_moving_blocks = 0
 
@@ -165,26 +163,19 @@ class PickAndPlace:
             'red': {
                 'safe_static_ee_pose_base': np.array([-0.178, -0.113, -0.141, -1.885, -0.016, 1.773, 0.472]),
                 'safe_tower_ee_pose_base': np.array([ 0.048, -0.306,  0.279, -2.073,  0.085, 1.777, 1.082]),
-                'safe_intermediate_static_ee_pose_base': np.array([-0.13875,  0.08052, -0.15922, -1.78293,  0.01325,  1.86239,  0.48415]),
+                'safe_intermediate_static_ee_pose_base': np.array([-0.13878, 0.08043, -0.15924, -1.78304, 0.01332, 1.86244, 0.48407]),
                 'safe_dynamic_ee_pose_base': np.array([1.326, 0.505, 0.383, -1.026, -0.182, 1.501, 0.867])
             },
             'blue': {
                 'safe_static_ee_pose_base': np.array([0.107, -0.115, 0.207, -1.885, 0.024, 1.772, 1.093]),
                 'safe_tower_ee_pose_base': np.array([-0.230, -0.295, -0.121, -2.073, -0.0360, 1.780, 0.447]),
-                'safe_intermediate_static_ee_pose_base': np.array([0.18411,  0.08003,  0.11209, -1.78294, -0.00929,  1.86243,  1.08388]),
+                'safe_intermediate_static_ee_pose_base': np.array([0.18416, 0.07999, 0.11214, -1.78303, -0.00938, 1.86251, 1.084]),
                 'safe_dynamic_ee_pose_base': np.array([-1.160, 0.491, -0.580, -1.226, 0.262, 1.645, 0.651])
             }
         }
 
         # Assume omega of the spin table is 0.0523 rad/s - equivalent to 0.5 rpm
         self.omega_spin_table = 0.0523
-
-        # Offsets for x and y coordinates in camera frame
-        self.camera_x = 0.0
-        self.camera_y = 0.0
-
-        # Assumption about time taken to move to desired joint angles
-        self.time_move_to_target = 3.72
 
 
     """
@@ -229,11 +220,119 @@ class PickAndPlace:
 
 
     """
+    Average the detected block poses over multiple frames.
+    This function is used only in 'static' mode.
+    """
+    def average_static_block_poses(self, num_frames=10):
+        block_poses = {}
+
+        for frame in range(num_frames):
+            detections = self.detector.get_detections()
+            self.debug_print(f"Frame {frame+1}/{num_frames}: Detected {len(detections)} blocks.")
+            for name, pose in detections:
+                if name not in block_poses:
+                    block_poses[name] = {'positions': [], 'rotations': []}
+                # Extract position and rotation
+                position = pose[:3, 3]
+                rotation = pose[:3, :3]
+                block_poses[name]['positions'].append(position)
+                block_poses[name]['rotations'].append(rotation)
+            rospy.sleep(0.1)  # Short sleep to simulate frame interval
+
+        averaged_block_poses = []
+        for name, data in block_poses.items():
+            if len(data['positions']) == 0:
+                continue  # Skip if no detections for this block
+            avg_position = np.mean(data['positions'], axis=0)
+            # For rotation, average quaternions for better accuracy
+            # Convert rotation matrices to quaternions
+            quaternions = [self.rotation_matrix_to_quaternion(rot) for rot in data['rotations']]
+            avg_quaternion = self.average_quaternions(quaternions)
+            # Convert averaged quaternion back to rotation matrix
+            avg_rotation = self.quaternion_to_rotation_matrix(avg_quaternion)
+            # Construct the averaged pose matrix
+            averaged_pose = np.eye(4)
+            averaged_pose[:3, :3] = avg_rotation
+            averaged_pose[:3, 3] = avg_position
+            averaged_block_poses.append((name, averaged_pose))
+            self.debug_print(f"Averaged pose for block {name}:\n {averaged_pose}")
+
+        return averaged_block_poses
+
+
+    """
+    Convert a rotation matrix to a quaternion.
+    """
+    def rotation_matrix_to_quaternion(self, R):
+        q = np.empty(4)
+        trace = np.trace(R)
+        if trace > 0:
+            s = 0.5 / np.sqrt(trace + 1.0)
+            q[0] = 0.25 / s
+            q[1] = (R[2,1] - R[1,2]) * s
+            q[2] = (R[0,2] - R[2,0]) * s
+            q[3] = (R[1,0] - R[0,1]) * s
+        else:
+            if R[0,0] > R[1,1] and R[0,0] > R[2,2]:
+                s = 2.0 * np.sqrt(1.0 + R[0,0] - R[1,1] - R[2,2])
+                q[0] = (R[2,1] - R[1,2]) / s
+                q[1] = 0.25 * s
+                q[2] = (R[0,1] + R[1,0]) / s
+                q[3] = (R[0,2] + R[2,0]) / s
+            elif R[1,1] > R[2,2]:
+                s = 2.0 * np.sqrt(1.0 + R[1,1] - R[0,0] - R[2,2])
+                q[0] = (R[0,2] - R[2,0]) / s
+                q[1] = (R[0,1] + R[1,0]) / s
+                q[2] = 0.25 * s
+                q[3] = (R[1,2] + R[2,1]) / s
+            else:
+                s = 2.0 * np.sqrt(1.0 + R[2,2] - R[0,0] - R[1,1])
+                q[0] = (R[1,0] - R[0,1]) / s
+                q[1] = (R[0,2] + R[2,0]) / s
+                q[2] = (R[1,2] + R[2,1]) / s
+                q[3] = 0.25 * s
+        return q
+
+    """
+    Average multiple quaternions.
+    """
+    def average_quaternions(self, quaternions):
+        # Create a matrix from quaternions
+        Q = np.array(quaternions)
+        # Compute the symmetric accumulator matrix
+        A = np.dot(Q.T, Q)
+        # Compute eigenvalues and eigenvectors
+        eigenvalues, eigenvectors = np.linalg.eigh(A)
+        # The eigenvector with the largest eigenvalue is the average quaternion
+        avg_quaternion = eigenvectors[:, np.argmax(eigenvalues)]
+        # Ensure the quaternion has positive scalar part
+        if avg_quaternion[0] < 0:
+            avg_quaternion = -avg_quaternion
+        return avg_quaternion
+
+    """
+    Convert a quaternion to a rotation matrix.
+    """
+    def quaternion_to_rotation_matrix(self, q):
+        q = q / np.linalg.norm(q)  # Normalize the quaternion
+        w, x, y, z = q
+        R = np.array([
+            [1 - 2*y**2 - 2*z**2,     2*x*y - 2*z*w,       2*x*z + 2*y*w],
+            [2*x*y + 2*z*w,           1 - 2*x**2 - 2*z**2, 2*y*z - 2*x*w],
+            [2*x*z - 2*y*w,           2*y*z + 2*x*w,       1 - 2*x**2 - 2*y**2]
+        ])
+        return R
+
+
+    """
     Detect blocks on the platform.
+    This method averages multiple detections only in 'static' mode.
+    In 'dynamic' mode, it processes detections per frame without averaging.
     """
     def detect_blocks(
             self,
-            validity_criteria = 'static', # static or dynamic
+            validity_criteria = 'static', # 'static' or 'dynamic'
+            num_average_frames = 10  # Number of frames to average over (only for 'static')
         ):
         blocks = []
         measured_times = []
@@ -247,18 +346,28 @@ class PickAndPlace:
         current_time = time_in_seconds()
         while True:
             total_count = 0
-            for (name, pose) in self.detector.get_detections():
-                curr_measurement_time = time_in_seconds()
-                total_count += 1
-                self.debug_print(f"Detected block: {name} at pose:\n {pose}")
-                if validity_criteria == 'static':
+
+            if validity_criteria == 'static':
+                # Average poses over multiple frames
+                averaged_detections = self.average_static_block_poses(num_frames=num_average_frames)
+                for (name, pose) in averaged_detections:
+                    curr_measurement_time = time_in_seconds()
+                    total_count += 1
+                    self.debug_print(f"Detected block: {name} at averaged pose:\n {pose}")
                     if self.valid_static_block(pose):
                         blocks.append((name, pose))
                         measured_times.append(curr_measurement_time)
                         self.debug_print(f"Block {name} is a valid static block!")
                     else:
                         self.debug_print(f"Block {name} is not a valid static block.")
-                elif validity_criteria == 'dynamic':
+            elif validity_criteria == 'dynamic':
+                # Process detections per frame without averaging
+                detections = self.detector.get_detections()
+                self.debug_print(f"Processing dynamic detections: {len(detections)} blocks detected.")
+                for (name, pose) in detections:
+                    curr_measurement_time = time_in_seconds()
+                    total_count += 1
+                    self.debug_print(f"Detected block: {name} at pose:\n {pose}")
                     if self.valid_dynamic_block(pose):
                         detectable, theta = self.dynamic_block_pickable(pose)
                         if not detectable:
@@ -269,7 +378,7 @@ class PickAndPlace:
                         self.debug_print(f"Block {name} is a valid dynamic block!")
                     else:
                         self.debug_print(f"Block {name} is not a valid dynamic block.")
-            
+
             # Check if we have found any blocks
             if len(blocks) > 0:
                 if validity_criteria == 'dynamic':
@@ -322,16 +431,16 @@ class PickAndPlace:
             return False
         # Z-coordinate from the world frame should be within the 
         # platform altitude + block size +- error margin range.
-        if self.mode == 'simulation':
-            if z_world < self.platform_altitude + self.block_size/2 - error_margin:
-                return False
-        else:
-            if z_world < self.platform_altitude + self.block_size - error_margin:
-                return False
-        
+        # TODO: Test on the real robot, it should self.block_size/2 or self.block_size.
+        if z_world < self.platform_altitude + self.block_size/2 - error_margin:
+            return False
+        if z_world > self.platform_altitude + self.block_size/2 + error_margin:
+            return False
+                
         return True
     
 
+        
     """
     Given a detected block pose in camera frame, check if the pose matches
     the expected pose of a dynamic block. This is useful for filtering out
@@ -362,12 +471,10 @@ class PickAndPlace:
         # Z-coordinate from the world frame should be within the
         # table height + block size +- error margin range.
         # TODO: Test on the real robot, it should self.block_size/2 or self.block_size.
-        if self.mode == 'simulation':
-            if z_world < self.spin_table_height + self.block_size/2 - error_margin:
-                return False
-        else:
-            if z_world < self.spin_table_height + self.block_size - error_margin:
-                return False
+        if z_world < self.spin_table_height + self.block_size/2 - error_margin:
+            return False
+        if z_world > self.spin_table_height + self.block_size/2 + error_margin:
+            return False
 
         return True
 
@@ -406,16 +513,12 @@ class PickAndPlace:
             success = False
             for i in range(num_trials):
                 current_joint_positions = self.arm.get_positions()
-                curr_time = time_in_seconds()
                 # Use the IK solver to find a joint angle solution
-                solution, rollout, success, message = self.IK_solver.inverse(
+                solution, rollout, success, __ = self.IK_solver.inverse(
                     target_pose, current_joint_positions, method='J_pseudo', alpha=0.5)
-                time_elapsed = time_in_seconds() - curr_time
-                print("time elapsed in IK: ", time_elapsed)
                 if success:
                     break
                 self.debug_print(f"Failed to find a solution for the target pose. Retrying...")
-                self.debug_print(message)
                 self.debug_print(f"Current joint positions: {current_joint_positions}")
 
             if not success:
@@ -423,21 +526,17 @@ class PickAndPlace:
                 return
             
             self.debug_print(f"Joint angles found using IK solver: {solution}")
-        
+
         # Wait for the required time before moving to the target pose
         if time_to_reach != -1:
             # Consider the time to reach the target pose.
-            time_to_move_to_pose = self.time_move_to_target
+            time_to_move_to_pose = 2 # 2 seconds for now
             expected_time_to_reach = time_to_reach - time_to_move_to_pose
             while time_in_seconds() < expected_time_to_reach:
-                self.debug_print("Sleeping for 0.1 sec")
-                rospy.sleep(0.1)
+                pass
         
         # Move to the target pose
-        curr_time = time_in_seconds()
         self.arm.safe_move_to_position(solution)
-        elapsed_time = time_in_seconds() - curr_time
-        self.debug_print(f"Time elapsed for safe move to position: {elapsed_time}")
         
         # Verify the arm moved to the target pose
         self.debug_print(f"Expected moving to target pose:\n {target_pose}")
@@ -473,10 +572,10 @@ class PickAndPlace:
     in any order. So, we need to find the correct x, y and z for the end-effector.
 
     One of the axis is aligned with z or -z, this can be found by checking the max value of 
-    3rd row of the pose matrix. The rest two axis should be choosen as x and y for the 
-    end-effector frame. This will be useful for the grasp pose.
+    3rd row of the pose matrix. The rest two axis should be chosen as x and y for the 
+    end-effector. This will be useful for the grasp pose.
 
-    Choose x as the one with one of the smallest angle with provided desired x-axis (in base frame).
+    Choose x as the one with one of the smallest angles with provided desired x-axis (in base frame).
     """
     def find_desired_ee_pose(self, block_pose, desired_x_axis):
         block_pose_base = self.camera_to_base(block_pose)
@@ -488,7 +587,7 @@ class PickAndPlace:
 
         # One of the axis is aligned with z or -z, this can be found
         # by checking the max value of 3rd row of the pose matrix.
-        # The rest two axis should be choosen as x and y for the end-effector
+        # The rest two axis should be chosen as x and y for the end-effector
         # frame. This will be useful for the grasp pose.
         axis = np.argmax(np.abs(block_pose_base[2, :3]))
         self.debug_print(f"Axis with max value: {axis}")
@@ -497,12 +596,15 @@ class PickAndPlace:
         for i in range(3):
             if i != axis:
                 curr_x = block_pose_base[:3, i]
-                # Set the z-component to 0
-                curr_x[2] = 0
-                # Normalize the current x-axis
-                curr_x /= np.linalg.norm(curr_x)
-                # measure angle between curr_x and [1, 0, 0], assume norm is 1
-                curr_angle = np.arccos(np.dot(curr_x, desired_x_axis))
+                # Normalize the current x axis
+                norm = np.linalg.norm(curr_x)
+                if norm < 1e-6:
+                    continue  # Skip near-zero vectors
+                curr_x = curr_x / norm
+                # measure angle between curr_x and desired_x_axis
+                dot_product = np.dot(curr_x, desired_x_axis)
+                dot_product = np.clip(dot_product, -1.0, 1.0)  # Prevent numerical issues
+                curr_angle = np.arccos(dot_product)
                 neg_angle = np.pi - curr_angle
                 # Choose the one with the smallest angle out of curr_x and -curr_x
                 if neg_angle < curr_angle:
@@ -512,6 +614,8 @@ class PickAndPlace:
                 if curr_angle < best_angle:
                     best_angle = curr_angle
                     chosen_x = curr_x
+        if chosen_x is None:
+            chosen_x = np.array([1, 0, 0])  # Default to x-axis if no valid axis found
         chosen_y = np.cross(chosen_z, chosen_x)
         desired_end_effector_pose[:3, 0] = chosen_x
         desired_end_effector_pose[:3, 1] = chosen_y
@@ -526,7 +630,6 @@ class PickAndPlace:
     def grasp_static_block(self, block_name, block_pose):
         desired_end_effector_pose, chosen_x, best_angle = \
                 self.find_desired_ee_pose(block_pose, np.array([1, 0, 0]))
-        desired_end_effector_pose[2, 3] = self.platform_altitude + self.block_size/2 + 0.01 # Fix the z-coordinate to pick the block
         self.debug_print(f"Desired end-effector pose for grasping block {block_name}:\n {desired_end_effector_pose}")
 
         # Move to the intermediate pose above the block
@@ -543,39 +646,14 @@ class PickAndPlace:
 
         # Verify the block is grasped
         gripper_state = self.arm.get_gripper_state()
-        if self.mode == 'real':
-            if gripper_state['force'][0] < 20:
-                print(f"Failed to grasp block {block_name}.")
-                return False
+        # TODO: Add this on the real robot, simulation is not accurate
+        # if gripper_state['force'][0] < 20:
+            # print(f"Failed to grasp block {block_name}.")
+            # return False
         
         self.debug_print(f"Grasped block {block_name}.")
         return True
-    
 
-    """
-    Calculate omega using name and given block pose at 
-    given detected time. Detect block pose again
-    at given time. Then compute elapsed time according to
-    theta difference.
-    """
-    def estimate_omega(self, block_name, theta_old, detect_time):
-        rospy.sleep(2.0)
-        for (name, pose) in detector.get_detections():
-            if self.valid_dynamic_block(pose) and name == block_name:
-                curr_time = time_in_seconds()
-                
-                # Calculate the radius of the block's center from the center of the table
-                block_pose_base = self.camera_to_base(pose)
-                block_pose_world = self.base_to_world(block_pose_base)
-                x_world, y_world, z_world = block_pose_world[:3, 3]
-
-                # theta_new
-                theta_new = np.arctan(abs(x_world)/abs(y_world))
-
-                omega = abs(theta_new - theta_old) / (curr_time - detect_time)
-                self.debug_print(f"detected omega: {omega}")
-        return omega
-    
 
     """
     Given a moving block pose, grasp the block.
@@ -588,11 +666,6 @@ class PickAndPlace:
             desired_x_axis = -desired_x_axis
         desired_end_effector_pose, chosen_x, best_angle = \
                 self.find_desired_ee_pose(block_pose, desired_x_axis)
-        
-        # Hack
-        # desired_end_effector_pose[:3, 0] = np.array([1, 0, 0])
-        # desired_end_effector_pose[:3, 1] = np.array([0, -1, 0])
-        # desired_end_effector_pose[:3, 2] = np.array([0., 0., -1])
         self.debug_print(f"Desired end-effector pose for grasping block {block_name}:\n {desired_end_effector_pose}")
 
         # We will calculate the future desired end-effector pose when the block crosses the y-axis
@@ -625,9 +698,7 @@ class PickAndPlace:
         self.debug_print(f"Desired end-effector future pose for grasping block {block_name}:\n {desired_end_effector_future_pose}")
 
         # Time after which the block will cross the y-axis, when theta_rotation_around_z is 0
-        theta_pose = np.arctan(abs(x_world)/abs(y_world))
-        omega = self.estimate_omega(block_name, theta_pose, detected_time)
-        time_to_cross = theta_pose / omega
+        time_to_cross = theta_rotation_around_z / self.omega_spin_table
 
         # Move to the block with desired end-effector future pose at the time_to_cross + detected_time
         self.move_to_target(desired_end_effector_future_pose, time_to_cross + detected_time)
@@ -638,15 +709,14 @@ class PickAndPlace:
         # Verify the block is grasped
         gripper_state = self.arm.get_gripper_state()
         # TODO: Add this on the real robot, simulation is not accurate
-        if self.mode == 'real':
-            if gripper_state['force'][0] < 20:
-                print(f"Failed to grasp block {block_name}.")
-                return False
+        # if gripper_state['force'][0] < 20:
+            # print(f"Failed to grasp block {block_name}.")
+            # return False
         
         self.debug_print(f"Grasped block {block_name}.")
         return True
             
-
+    
     """
     Place the block on the tower.
     You can assume that the current pose of the robot is on the
@@ -707,9 +777,8 @@ class PickAndPlace:
 
         # Choose one block to pick
         if len(detected_static_blocks) > 0:
-            # Choose any one block - randomly chose any one block
-            i = random.randint(0, len(detected_static_blocks) - 1)
-            block_name, block_pose = detected_static_blocks[i]
+            # Choose any one block
+            block_name, block_pose = detected_static_blocks[0]
             self.debug_print(f"Block {block_name} is chosen for static pick and place.")
 
             if self.grasp_static_block(block_name, block_pose):
@@ -733,7 +802,7 @@ class PickAndPlace:
     """
     def dynamic_block_pickable(self, block_pose):
         # TODO: check if this is enough, also test on the real robot
-        time_margin = 4.0 + self.time_move_to_target # 2 seconds for IK_solver, 3 seconds for moving to the block
+        time_margin = 2.0 + 5.0 # 2 seconds for IK_solver, 5 seconds for moving to the block
         theta_margin = self.omega_spin_table * time_margin
 
         block_pose_base = self.camera_to_base(block_pose)
@@ -753,7 +822,11 @@ class PickAndPlace:
         world_vector = np.array([0, 1])
         if self.team == 'red':
             world_vector = -world_vector
-        cos_theta = np.dot(block_vector, world_vector) / np.linalg.norm(block_vector)
+        norm_block_vector = np.linalg.norm(block_vector)
+        if norm_block_vector < 1e-6:
+            return False, None  # Avoid division by zero
+        cos_theta = np.dot(block_vector, world_vector) / norm_block_vector
+        cos_theta = np.clip(cos_theta, -1.0, 1.0)  # Ensure the value is within valid range
         theta = np.arccos(cos_theta)
 
         # Reject blocks with angle less than the margin
@@ -800,29 +873,29 @@ class PickAndPlace:
     """
     def pick_and_place(self):
         order_of_operations = [
+            # 'dynamic',
             'static', 'static', 
-            'static', 'static',
-            'dynamic', 'dynamic',
-            'dynamic', 'dynamic'
+            'static', 'static','dynamic','dynamic'
         ]
 
-        # Always first move to the start position after opening the gripper
-        self.arm.open_gripper()
-        self.arm.safe_move_to_position(self.start_position)
-
         for i, operation in enumerate(order_of_operations):
+            self.mode = operation
             self.debug_print(f"Attempting operation {i+1} in mode: {operation}.")
 
-            # Check the mode
-            if operation == 'static':
-                self.static_pick_and_place()
-            elif operation == 'dynamic':
-                self.dynamic_pick_and_place()
-
-            # Always in the end move to the start position after opening the gripper
+            # Always first move to the start position after opening the gripper
             self.arm.open_gripper()
             self.arm.safe_move_to_position(self.start_position)
 
+            # Check the mode
+            if self.mode == 'static':
+                self.static_pick_and_place()
+            elif self.mode == 'dynamic':
+                self.dynamic_pick_and_place()
+
+
+# Utility functions for quaternion and rotation matrix conversions
+# These can be placed inside the class or as separate functions
+# For simplicity, they are included inside the class in this example
 
 if __name__ == "__main__":
     try:
@@ -836,7 +909,7 @@ if __name__ == "__main__":
     arm = ArmController()
     detector = ObjectDetector()
 
-    start_position = np.array([-0.01779206, -0.76012354,  0.01978261, -2.34205014, 0.02984053, 1.54119353+pi/2, 0.75344866])
+    start_position = np.array([0, 0, 0, -pi/2, 0, pi/2, pi/4])
     arm.safe_move_to_position(start_position) # on your mark!
 
     print("\n****************")
@@ -848,10 +921,6 @@ if __name__ == "__main__":
     input("\nWaiting for start... Press ENTER to begin!\n") # get set!
     print("Go!\n") # go!
 
-    # STUDENT CODE HERE
-
     # Initialize the pick and place class
-    pick_and_place = PickAndPlace(team, arm, detector)
+    pick_and_place = PickAndPlace(team, arm, detector, start_position)
     pick_and_place.pick_and_place()
-
-    # END STUDENT CODE
