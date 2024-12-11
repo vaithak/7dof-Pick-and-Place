@@ -51,7 +51,7 @@ class PickAndPlace:
         if team == 'red':
             self.world_to_base_y *= -1
 
-        self.platform_altitude = 0.16
+        self.platform_altitude = 0.20
         self.platform_size = 0.25
         self.platform_center_x = 0.562
 
@@ -132,7 +132,7 @@ class PickAndPlace:
         self.spin_table_world_y = self.spin_table_radius
         if team == 'red':
             self.spin_table_world_y *= -1
-        self.spin_table_height = 0.2
+        self.spin_table_height = 0.16
         self.spin_table_width = 0.02
         safe_position_ee = np.array([
                 0,
@@ -157,6 +157,8 @@ class PickAndPlace:
 
         # Mode to define whether we are running in simulation or real robot
         self.mode = 'real'
+        if self.mode == 'simulation':
+            self.spin_table_height = 0.2
         self.placed_static_blocks = 0
         self.placed_moving_blocks = 0
 
@@ -172,6 +174,7 @@ class PickAndPlace:
                 'safe_static_ee_pose_base': np.array([0.107, -0.115, 0.207, -1.885, 0.024, 1.772, 1.093]),
                 'safe_tower_ee_pose_base': np.array([-0.230, -0.295, -0.121, -2.073, -0.0360, 1.780, 0.447]),
                 'safe_intermediate_static_ee_pose_base': np.array([0.18411,  0.08003,  0.11209, -1.78294, -0.00929,  1.86243,  1.08388]),
+                'safe_intermediate_dynamic_ee_pose_base': np.array([-1.0898,   0.52089, -0.60802, -1.51138,  0.30915,  1.93507,  0.60995]),
                 'safe_dynamic_ee_pose_base': np.array([-1.160, 0.491, -0.580, -1.226, 0.262, 1.645, 0.651])
             }
         }
@@ -421,10 +424,13 @@ class PickAndPlace:
                 self.debug_print(f"Found joint angles in cache for safe dynamic pose:\n {solution}")
 
         if not found_in_cache:
-            num_trials = 3
+            current_joint_positions = self.arm.get_positions()
+            if target_pose[0, 3] < 1e-2: # close to 0.0
+                self.debug_print(f"Very close to spinning table pose.")
+                current_joint_positions = self.cached_joint_angles[self.team]['safe_intermediate_dynamic_ee_pose_base']
+            num_trials = 1
             success = False
             for i in range(num_trials):
-                current_joint_positions = self.arm.get_positions()
                 curr_time = time_in_seconds()
                 # Use the IK solver to find a joint angle solution
                 solution, rollout, success, message = self.IK_solver.inverse(
@@ -619,7 +625,7 @@ class PickAndPlace:
         
         if self.mode == 'real':
             # Fix the z-coordinate to pick the block
-            desired_end_effector_pose[2, 3] = self.platform_altitude
+            desired_end_effector_pose[2, 3] = self.spin_table_height
         
         # Hack
         # desired_end_effector_pose[:3, 0] = np.array([1, 0, 0])
@@ -765,7 +771,7 @@ class PickAndPlace:
     """
     def dynamic_block_pickable(self, block_pose):
         # TODO: check if this is enough, also test on the real robot
-        time_margin = 8.8 + self.time_move_to_target # 8.5 seconds for IK solver
+        time_margin = 6.8 + self.time_move_to_target # 8.5 seconds for IK solver
         theta_margin = self.omega_spin_table * time_margin
 
         block_pose_base = self.camera_to_base(block_pose)
