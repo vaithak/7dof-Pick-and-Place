@@ -839,8 +839,8 @@ class PickAndPlace:
     """
     def pick_and_place(self):
         order_of_operations = [
-            # 'static', 'static', 
-            # 'static', 'static',
+            'static', 'static', 
+            'static', 'static',
             'dynamic', 'dynamic',
             'dynamic', 'dynamic'
         ]
