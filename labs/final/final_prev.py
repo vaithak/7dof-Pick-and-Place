@@ -51,7 +51,7 @@ class PickAndPlace:
         if team == 'red':
             self.world_to_base_y *= -1
 
-        self.platform_altitude = 0.20
+        self.platform_altitude = 0.2
         self.platform_size = 0.25
         self.platform_center_x = 0.562
 
@@ -132,7 +132,7 @@ class PickAndPlace:
         self.spin_table_world_y = self.spin_table_radius
         if team == 'red':
             self.spin_table_world_y *= -1
-        self.spin_table_height = 0.16
+        self.spin_table_height = 0.2
         self.spin_table_width = 0.02
         safe_position_ee = np.array([
                 0,
@@ -156,9 +156,7 @@ class PickAndPlace:
         self.debug_print(f"Safe dynamic block pose in base frame:\n {self.safe_dynamic_ee_pose_base}")
 
         # Mode to define whether we are running in simulation or real robot
-        self.mode = 'real'
-        if self.mode == 'simulation':
-            self.spin_table_height = 0.2
+        self.mode = 'simulation'
         self.placed_static_blocks = 0
         self.placed_moving_blocks = 0
 
@@ -168,20 +166,18 @@ class PickAndPlace:
                 'safe_static_ee_pose_base': np.array([-0.178, -0.113, -0.141, -1.885, -0.016, 1.773, 0.472]),
                 'safe_tower_ee_pose_base': np.array([ 0.048, -0.306,  0.279, -2.073,  0.085, 1.777, 1.082]),
                 'safe_intermediate_static_ee_pose_base': np.array([-0.13875,  0.08052, -0.15922, -1.78293,  0.01325,  1.86239,  0.48415]),
-                'safe_intermediate_dynamic_ee_pose_base':np.array([ 1.2336,   0.52377,  0.41128, -1.58215, -0.22826,  2.05813,  0.91769]),
                 'safe_dynamic_ee_pose_base': np.array([1.326, 0.505, 0.383, -1.026, -0.182, 1.501, 0.867])
             },
             'blue': {
                 'safe_static_ee_pose_base': np.array([0.107, -0.115, 0.207, -1.885, 0.024, 1.772, 1.093]),
                 'safe_tower_ee_pose_base': np.array([-0.230, -0.295, -0.121, -2.073, -0.0360, 1.780, 0.447]),
                 'safe_intermediate_static_ee_pose_base': np.array([0.18411,  0.08003,  0.11209, -1.78294, -0.00929,  1.86243,  1.08388]),
-                'safe_intermediate_dynamic_ee_pose_base': np.array([-1.09033,  0.56587, -0.5944,  -1.57671,  0.34274,  2.03664,  0.58838]),
                 'safe_dynamic_ee_pose_base': np.array([-1.160, 0.491, -0.580, -1.226, 0.262, 1.645, 0.651])
             }
         }
 
-        # Assume omega of the spin table is 0.065 rad/s
-        self.omega_spin_table = 0.065
+        # Assume omega of the spin table is 0.0523 rad/s - equivalent to 0.5 rpm
+        self.omega_spin_table = 0.0523
 
         # Offsets for x and y coordinates in camera frame - for real robot
         self.offset_x = {
@@ -189,14 +185,12 @@ class PickAndPlace:
             'blue': 0.0
         }
         self.offset_y = {
-            'red': 0.009,
-            'blue': 0.015
+            'red': 0.0,
+            'blue': 0.0
         }
 
         # Assumption about time taken to move to desired joint angles
-        self.time_move_to_target = 3.81
-        if self.mode == 'simulation':
-            self.time_move_to_target = 3.75
+        self.time_move_to_target = 3.75
 
 
     """
@@ -253,7 +247,7 @@ class PickAndPlace:
         retry = False
         if validity_criteria == 'dynamic':
             # In this case, we may need to keep looking for a fixed amount of time.
-            lookup_max_time = 20.0
+            lookup_max_time = 10.0
             retry = True
 
         current_time = time_in_seconds()
@@ -425,13 +419,10 @@ class PickAndPlace:
                 self.debug_print(f"Found joint angles in cache for safe dynamic pose:\n {solution}")
 
         if not found_in_cache:
-            current_joint_positions = self.arm.get_positions()
-            if target_pose[0, 3] < 1e-2: # close to 0.0
-                self.debug_print(f"Very close to spinning table pose.")
-                current_joint_positions = self.cached_joint_angles[self.team]['safe_intermediate_dynamic_ee_pose_base']
-            num_trials = 1
+            num_trials = 3
             success = False
             for i in range(num_trials):
+                current_joint_positions = self.arm.get_positions()
                 curr_time = time_in_seconds()
                 # Use the IK solver to find a joint angle solution
                 solution, rollout, success, message = self.IK_solver.inverse(
@@ -592,7 +583,6 @@ class PickAndPlace:
     """
     def estimate_omega(self, block_name, theta_old, detect_time):
         rospy.sleep(2.0)
-        omega = None
         for (name, pose) in detector.get_detections():
             if self.valid_dynamic_block(pose) and name == block_name:
                 curr_time = time_in_seconds()
@@ -607,8 +597,6 @@ class PickAndPlace:
 
                 omega = abs(theta_new - theta_old) / (curr_time - detect_time)
                 self.debug_print(f"detected omega: {omega}")
-        if omega is None:
-            return self.omega_spin_table
         return omega
     
 
@@ -623,10 +611,6 @@ class PickAndPlace:
             desired_x_axis = -desired_x_axis
         desired_end_effector_pose, chosen_x, best_angle = \
                 self.find_desired_ee_pose(block_pose, desired_x_axis)
-        
-        if self.mode == 'real':
-            # Fix the z-coordinate to pick the block
-            desired_end_effector_pose[2, 3] = self.spin_table_height
         
         # Hack
         # desired_end_effector_pose[:3, 0] = np.array([1, 0, 0])
@@ -772,7 +756,7 @@ class PickAndPlace:
     """
     def dynamic_block_pickable(self, block_pose):
         # TODO: check if this is enough, also test on the real robot
-        time_margin = 6.8 + self.time_move_to_target # 8.5 seconds for IK solver
+        time_margin = 5.0 + self.time_move_to_target # 2 seconds for IK_solver, 3 seconds for moving to the block
         theta_margin = self.omega_spin_table * time_margin
 
         block_pose_base = self.camera_to_base(block_pose)
@@ -839,7 +823,7 @@ class PickAndPlace:
     """
     def pick_and_place(self):
         order_of_operations = [
-            # 'static', 'static', 
+            'static', 'static', 
             # 'static', 'static',
             'dynamic', 'dynamic',
             'dynamic', 'dynamic'
@@ -859,7 +843,7 @@ class PickAndPlace:
                 self.dynamic_pick_and_place()
 
             # Check if current position is safe tower position - i.e safe_tower_ee_pose_base
-            if not np.allclose(self.arm.get_positions(), self.cached_joint_angles[self.team]['safe_tower_ee_pose_base'], atol = 1e-2, rtol = 1e-2):
+            if not np.allclose(self.arm.get_positions(), self.cached_joint_angles[self.team]['safe_tower_ee_pose_base'], atol=1e-3, rtol=1e-3):
                 self.arm.open_gripper()
                 self.arm.safe_move_to_position(self.start_position)
 

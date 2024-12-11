@@ -307,19 +307,12 @@ if __name__ == "__main__":
     # matches figure in the handout
     seed = np.array([0,0,0,-pi/2,0,pi/2,pi/4])
 
-    # target = np.array([
-    #     [0,-1,0,0],
-    #     [-1,0,0,-0.6852],
-    #     [0,0,-1,.25],
-    #     [0,0,0, 1],
-    # ])
-
     target = np.array([
-                [0, 1, 0, 0],
-                [1, 0, 0, 0.6852],
-                [0, 0, -1, 0.25],
-                [0, 0, 0, 1]
-            ])
+        [0,-1,0,-0.2],
+        [-1,0,0,0],
+        [0,0,-1,.5],
+        [0,0,0, 1],
+    ])
 
     # Using pseudo-inverse 
     q_pseudo, rollout_pseudo, success_pseudo, message_pseudo = ik.inverse(target, seed, method='J_pseudo', alpha=.5)
