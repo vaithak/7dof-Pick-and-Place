@@ -30,6 +30,9 @@ Dynamic Blocks
 Combined Stack
 *Figure 3: 6 Stacked blocks (combined static and dynamic)*
 
+<img width="656" alt="image" src="https://github.com/user-attachments/assets/719876cf-0f0c-4723-9cf3-35f33b63631f" />
+
+
 ## Evaluation Metrics
 
 | Parameter | Value (Average) |
@@ -64,6 +67,8 @@ The system incorporates comprehensive logging for troubleshooting and performanc
 
 Logs
 *Figure 4: System logs for performance analysis*
+<img width="818" alt="image" src="https://github.com/user-attachments/assets/26941cc6-eecd-4b39-b476-616b269ac98a" />
+
 
 ## Future Improvements
 
